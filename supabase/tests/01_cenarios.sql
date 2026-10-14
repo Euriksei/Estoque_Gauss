@@ -130,6 +130,14 @@ select atender_solicitacao(:sol2, '{"modo_envio":"correios"}'::jsonb);
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
 select atender_solicitacao(:sol2, jsonb_build_object('modo_envio','tecnico','itens',jsonb_build_array(jsonb_build_object('produto_id',(select fmc from ids),'quantidade',2)))) is not null;
 select 'transferência em trânsito para o carro: ' || (select count(*) from transferencias_em_transito t where t.local_destino_id=(select car from ids));
+\echo '--- 8. Solicitação para estoque dedicado: técnico pede 2 dedicados à Mineração; Op NL atende; chegam como dedicados'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select criar_solicitacao(jsonb_build_object('itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',2,'reservar_para_unidade_id',u2), jsonb_build_object('produto_id',fmc,'quantidade',1)))) as sol4 from ids \gset
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select atender_solicitacao(:sol4, '{"modo_envio":"tecnico"}'::jsonb) as t5 \gset
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select confirmar_recebimento(:t5);
+select 'carro dedicado Mineração=' || (select sum(quantidade) from saldo where local_id=car and reservado_unidade_id=u2) from ids;
 \echo '--- consulta não escreve; vê tudo'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
 \set ON_ERROR_STOP off

@@ -95,7 +95,7 @@ export function DedicadoAcoes({ unidadeId, produtoId, localId, max, destinos, te
           )}
           {aberto === "cliente" && (
             <label className="text-xs sm:col-span-4">Link do chamado no Jira (opcional)
-              <input className="campo" value={chamado} onChange={(e) => setChamado(e.target.value)} />
+              <input className="campo" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
             </label>
           )}
           <div className="sm:col-span-4">

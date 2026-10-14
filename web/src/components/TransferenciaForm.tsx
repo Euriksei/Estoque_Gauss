@@ -34,7 +34,7 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
   return (
     <form onSubmit={enviar} className="card space-y-4">
       <h2 className="font-medium">Nova transferência</h2>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">De
           <select className="campo mt-1" value={origem} onChange={(e) => setOrigem(Number(e.target.value))} required>
             <option value="">Selecione</option>
@@ -50,6 +50,9 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
         <label className="text-sm">Data de envio
           <input type="date" className="campo mt-1" value={data} onChange={(e) => setData(e.target.value)} required />
         </label>
+        <label className="text-sm">Prazo de chegada
+          <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+        </label>
         <label className="text-sm">Meio de envio
           <select className="campo mt-1" value={modo} onChange={(e) => setModo(e.target.value)}>
             <option value="">-</option>
@@ -58,11 +61,8 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
             <option value="transportadora">Transportadora</option>
           </select>
         </label>
-        <label className="text-sm sm:col-span-2">Código de rastreio
+        <label className="text-sm">Código de rastreio
           <input className="campo mt-1" value={rastreio} onChange={(e) => setRastreio(e.target.value)} />
-        </label>
-        <label className="text-sm">Prazo de chegada
-          <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
         </label>
       </div>
       <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="sim" />

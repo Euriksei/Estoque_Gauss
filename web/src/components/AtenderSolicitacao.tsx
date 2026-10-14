@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 // O operador atende o pedido: o envio sai da origem e vai para o destino definidos na solicitação.
-export function AtenderSolicitacao({ id, itens }: { id: number; itens: { produto_id: number; quantidade: number }[] }) {
+export function AtenderSolicitacao({ id }: { id: number }) {
   const router = useRouter();
   const [modo, setModo] = useState("tecnico");
   const [erro, setErro] = useState("");
@@ -16,7 +16,7 @@ export function AtenderSolicitacao({ id, itens }: { id: number; itens: { produto
       </select>
       <button className="btn" onClick={async () => {
         const { error } = await supabaseBrowser().rpc("atender_solicitacao", {
-          p_id: id, p: { modo_envio: modo, itens },
+          p_id: id, p: { modo_envio: modo },
         });
         if (error) setErro(error.message); else router.refresh();
       }}>Atender (enviar)</button>

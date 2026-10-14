@@ -3,11 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
-import type { Associado, ItemForm, Local, Produto } from "@/lib/types";
+import type { Associado, ItemForm, Local, Produto, Unidade } from "@/lib/types";
 
 // Técnico: o pedido é para o estoque dele e sai do estoque base dele (fixo). Os demais escolhem de onde e para onde.
-export function SolicitacaoForm({ produtos, associados, locais = [], tecnicoBase }: {
-  produtos: Produto[]; associados: Associado[]; locais?: Local[]; tecnicoBase: { nome: string } | null | undefined;
+export function SolicitacaoForm({ produtos, associados, unidades, locais = [], tecnicoBase }: {
+  produtos: Produto[]; associados: Associado[]; unidades: Unidade[]; locais?: Local[]; tecnicoBase: { nome: string } | null | undefined;
 }) {
   const ehTecnico = tecnicoBase !== undefined;
   const [origem, setOrigem] = useState<number | "">("");
@@ -21,7 +21,7 @@ export function SolicitacaoForm({ produtos, associados, locais = [], tecnicoBase
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabaseBrowser().rpc("criar_solicitacao", {
-      p: { origem_id: origem, destino_id: destino, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens, associados).map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade })) },
+      p: { origem_id: origem, destino_id: destino, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens, associados).map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade, reservar_para_unidade_id: i.reservar_para_unidade_id })) },
     });
     if (error) return setMsg({ ok: false, texto: error.message });
     setMsg({ ok: true, texto: "Solicitação enviada." });
@@ -50,9 +50,9 @@ export function SolicitacaoForm({ produtos, associados, locais = [], tecnicoBase
           </label>
         </div>
       )}
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={[]} chicote="sim" />
-      <label className="block text-sm">Link do chamado (opcional)
-        <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="sim" />
+      <label className="block text-sm">Link do chamado no Jira (opcional)
+        <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
       </label>
       <label className="block text-sm">Observação
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
