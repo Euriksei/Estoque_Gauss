@@ -4,7 +4,7 @@ Sistema web de controle de estoque (entrada e saída de equipamentos e insumos),
 
 - `docs/`: modelo de dados e catálogo de itens
 - `supabase/`: banco de dados (migrações, carga inicial e testes)
-- `web/`: aplicativo web (Next.js + Supabase), vem no próximo passo
+- `web/`: aplicativo web (Next.js + Supabase); veja `web/README.md` para rodar
 
 ## Banco de dados
 - `supabase/migrations/0001_schema.sql`: tabelas e views (saldo, em trânsito, itens com cliente, itens dedicados).
