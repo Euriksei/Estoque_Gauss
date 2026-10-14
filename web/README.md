@@ -1,5 +1,7 @@
 # Estoque Gauss: aplicativo web
 
+A documentação completa (uso, perfis, instalação e problemas comuns) está no [README da raiz](../README.md).
+
 Next.js 14 + Supabase. O app lê pelas tabelas e views (protegidas por perfil no banco) e grava só pelas funções do banco (`registrar_movimentacao`, `criar_transferencia`, `confirmar_recebimento`, ...).
 
 ## Telas

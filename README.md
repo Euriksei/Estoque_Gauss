@@ -1,16 +1,131 @@
 # Estoque Gauss
 
-Sistema web de controle de estoque (entrada e saída de equipamentos e insumos), por quantidade, com níveis de acesso por perfil.
+Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da empresa, por quantidade, com níveis de acesso por perfil. Cada estoque (São Bernardo, Nova Lima e o carro de cada técnico) tem o próprio saldo, e todo movimento fica registrado e auditável.
 
-- `docs/`: modelo de dados e catálogo de itens
-- `supabase/`: banco de dados (migrações, carga inicial e testes)
-- `web/`: aplicativo web (Next.js + Supabase); veja `web/README.md` para rodar
+## O que o sistema faz
 
-## Banco de dados
-- `supabase/migrations/0001_schema.sql`: tabelas e views (saldo, em trânsito, itens com cliente, itens dedicados).
-- `supabase/migrations/0002_seguranca_e_funcoes.sql`: acesso por perfil (RLS), auditoria e as funções que fazem toda escrita de estoque.
-- `supabase/migrations/0003_primeiro_administrador.sql`: o primeiro cadastro vira administrador; os seguintes entram inativos até serem liberados.
-- `supabase/seed.sql`: locais (SBC, Nova Lima), 15 categorias e 90 itens.
-- `supabase/tests/`: cenários de teste de permissões e fluxos (rodam num PostgreSQL comum com um stub do schema `auth`).
+- **Saldo por local, item e condição** (novo ou usado). O saldo nunca é digitado: ele é calculado a partir das movimentações e nunca pode ficar negativo.
+- **Movimentações**: entrada por compra, devolução de cliente, saída para cliente, consumo interno ou teste, descarte e ajuste de inventário.
+- **Transferências em duas etapas**: quem envia informa data, meio de envio, código de rastreio e prazo de chegada, e o saldo sai do estoque dele na hora. O destino acompanha o envio e só recebe o saldo quando confirma o recebimento.
+- **Estoque do técnico**: cada técnico tem o próprio "carro", vê só o que tem nele, pede material, dá baixa do que usou no cliente e confirma o que recebe.
+- **Itens dedicados a um cliente**: um item pode ser enviado já reservado para uma unidade de cliente. Ele fica fora do estoque livre e só pode sair para aquele cliente, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico.
+- **Itens que andam juntos**: ao escolher um módulo (por exemplo, Galileo), o formulário sugere o chicote correspondente. A sugestão é editável.
+- **Alerta de estoque mínimo** na tela de Estoque.
+- **Auditoria**: nada é apagado. Correções são estornos, feitos só por administrador, e ficam registradas.
 
-O app não grava direto nas tabelas de movimentação: só chama as funções (`registrar_movimentacao`, `criar_transferencia`, `confirmar_recebimento`, ...), que checam perfil e local, travam o local contra uso simultâneo e desfazem tudo se algum saldo ficar negativo.
+## Perfis de acesso
+
+| Ação | Administrador | Operador de estoque | Técnico | Consulta |
+|---|:-:|:-:|:-:|:-:|
+| Ver saldo e histórico | todos os locais | só os estoques liberados para ele | só o próprio carro | todos os locais |
+| Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | só saída para cliente, do próprio carro | |
+| Criar transferência (enviar) | ✓ | ✓ (do seu estoque) | | |
+| Confirmar recebimento | ✓ | ✓ (no seu estoque) | ✓ (no próprio carro) | |
+| Pedir material | ✓ | ✓ | ✓ | |
+| Atender pedido do técnico | ✓ | ✓ | | |
+| Cadastros (itens, clientes, mínimos) e usuários | ✓ | | | |
+| Estornar movimentação | ✓ | | | |
+
+Essas regras são garantidas no banco de dados, não só nas telas.
+
+## Como usar no dia a dia
+
+1. **Entre** com e-mail e senha. Quem ainda não tem conta usa "Primeiro acesso" e espera um administrador liberar.
+2. **Estoque**: veja o saldo por local, filtre por local ou busque um item. Itens abaixo do mínimo aparecem em destaque.
+3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Para devolver o que estava reservado a um cliente, use "Item reservado de".
+4. **Transferências**: escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para enviar uma caixa dedicada, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
+5. **Solicitações** (técnico): peça os itens de que precisa. O operador atende e o material segue para o carro. O técnico confirma o recebimento em Transferências.
+6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega.
+7. **Histórico**: veja as movimentações. O administrador pode estornar uma movimentação informando o motivo.
+
+### Para o administrador
+
+- **Usuários**: quem se cadastra entra inativo. Escolha o perfil, marque "Ativo" e, para operador, marque os estoques que ele pode movimentar. Para técnico, clique em "Criar estoque/carro".
+- **Cadastros**: adicione clientes e unidades, itens e ajuste o estoque mínimo de cada item.
+- O **primeiro cadastro** do sistema vira administrador automaticamente.
+
+## Estrutura do repositório
+
+```
+docs/        modelo de dados e catálogo de itens (90 itens em 15 categorias)
+supabase/    banco de dados: migrações, carga inicial e testes
+web/         aplicativo web (Next.js 14 + Tailwind + Supabase)
+```
+
+O app lê pelas tabelas e views (protegidas por perfil) e **grava só pelas funções do banco** (`registrar_movimentacao`, `criar_transferencia`, `confirmar_recebimento`, `cancelar_transferencia`, `estornar_movimentacao`, `criar_solicitacao`, `atender_solicitacao`, `cancelar_solicitacao`). Elas checam perfil e local, travam o local contra uso simultâneo e desfazem tudo se algum saldo ficar negativo.
+
+Mais detalhes do modelo estão em [`docs/modelo-de-dados.md`](docs/modelo-de-dados.md).
+
+## Instalação (para quem vai rodar ou mexer no sistema)
+
+Você precisa de Node.js 18 ou mais novo, Git e um projeto no [Supabase](https://supabase.com).
+
+### 1. Banco de dados
+
+No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cada arquivo (abra o arquivo, copie todo o texto e cole no editor, não o nome do arquivo):
+
+1. `supabase/migrations/0001_schema.sql`
+2. `supabase/migrations/0002_seguranca_e_funcoes.sql`
+3. `supabase/migrations/0003_primeiro_administrador.sql`
+4. `supabase/seed.sql`
+
+Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
+
+### 2. Aplicativo
+
+```
+cd web
+npm install
+```
+
+Crie o arquivo `web/.env.local` com os dados do seu projeto (Settings, API no Supabase):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publica
+```
+
+Use só a chave **pública** (publishable). Nunca coloque a chave secreta (service role) no app nem no repositório. O `.env.local` já está no `.gitignore`.
+
+```
+npm run dev
+```
+
+Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela será o primeiro administrador.
+
+### 3. Comandos úteis
+
+| Comando (dentro de `web/`) | Para quê |
+|---|---|
+| `npm run dev` | rodar em modo de desenvolvimento |
+| `npm run build` | gerar a versão de produção |
+| `npm run start` | rodar a versão de produção (depois do build) |
+| `npm run typecheck` | checar os tipos do TypeScript |
+
+## Testes do banco
+
+`supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas, estoque do técnico e itens dedicados. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), as migrações, o `seed.sql` e por fim `01_cenarios.sql`. Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
+
+## Problemas comuns
+
+| Sintoma | Causa e solução |
+|---|---|
+| `npm install` diz que não acha o `package.json` | Você não está na pasta `web`. Rode `cd web` antes. |
+| `'next' não é reconhecido` | As dependências não foram instaladas. Rode `npm install` em `web/`. |
+| "Your project's URL and Key are required" | Falta o `web/.env.local` ou o nome da variável está errado. Reinicie o `npm run dev` depois de criá-lo. |
+| O SQL Editor dá erro de sintaxe em `migrations/0001...` | Foi colado o nome do arquivo. Cole o conteúdo dele. |
+| Entro e volto para o login, ou aparece "Aguardando liberação" | A conta ainda não foi liberada, ou não tem linha na tabela de usuários. Rode a migração `0003` e peça a um administrador para liberar. |
+| "Saldo insuficiente" | O local não tem a quantidade (na condição e na reserva escolhidas). Confira o saldo na tela Estoque. |
+| "Sem permissão para movimentar este local" | O seu perfil ou os estoques liberados para você não incluem esse local. Peça a um administrador. |
+
+## Segurança
+
+- As regras de acesso são aplicadas no banco (segurança por linha do Supabase) e valem mesmo que alguém chame a API diretamente.
+- Quem se cadastra entra sem acesso e inativo, até um administrador liberar.
+- Nada de chaves secretas no repositório: só a chave pública vai no app.
+
+## Próximos passos
+
+- Tela de "esqueci minha senha".
+- Relatórios e exportação.
+- Publicação (por exemplo, na Vercel) com as mesmas variáveis do `.env.local`.
