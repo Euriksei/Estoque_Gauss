@@ -11,9 +11,8 @@ Next.js 14 + Supabase. O app lê pelas tabelas e views (protegidas por perfil no
 - **Histórico**, **Cadastros** (clientes, unidades, itens, estoque mínimo) e **Usuários** (perfil, acesso e estoques), os dois últimos só para administradores.
 
 ## Como rodar
-1. Crie um projeto no Supabase e aplique, nesta ordem, `supabase/migrations/0001_schema.sql`, `0002_seguranca_e_funcoes.sql` e `supabase/seed.sql`.
+1. Crie um projeto no Supabase e aplique, nesta ordem, `supabase/migrations/0001_schema.sql`, `0002_seguranca_e_funcoes.sql`, `0003_primeiro_administrador.sql` e `supabase/seed.sql`.
 2. Copie `web/.env.example` para `web/.env.local` e preencha a URL e a chave pública (publishable) do projeto.
 3. `cd web && npm install && npm run dev`.
-4. Crie sua conta pela tela de login ("Primeiro acesso") e libere-se como administrador no SQL Editor do Supabase:
-   `update usuario set perfil = 'admin', ativo = true where email = 'seu@email';`
+4. Crie sua conta pela tela de login ("Primeiro acesso"). O primeiro cadastro do sistema vira administrador ativo automaticamente.
 5. Daí em diante, libere os outros usuários na tela **Usuários**: escolha o perfil, marque o acesso e os estoques (para técnico, crie o estoque/carro dele).
