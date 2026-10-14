@@ -6,12 +6,12 @@ import { PERFIS, type Perfil } from "@/lib/types";
 import { SairBotao } from "@/components/SairBotao";
 
 const MENU: { href: string; nome: string; perfis: Perfil[] }[] = [
-  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "tecnico", "consulta"] },
+  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
   { href: "/movimentar", nome: "Registrar", perfis: ["admin", "operador", "tecnico"] },
-  { href: "/transferencias", nome: "Transferências", perfis: ["admin", "operador", "tecnico", "consulta"] },
-  { href: "/solicitacoes", nome: "Solicitações", perfis: ["admin", "operador", "tecnico", "consulta"] },
-  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "tecnico", "consulta"] },
-  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "tecnico", "consulta"] },
+  { href: "/transferencias", nome: "Transferências", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
+  { href: "/solicitacoes", nome: "Solicitações", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
+  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
+  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
   { href: "/cadastros", nome: "Cadastros", perfis: ["admin"] },
   { href: "/usuarios", nome: "Usuários", perfis: ["admin"] },
 ];

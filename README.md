@@ -19,16 +19,16 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 ## Perfis de acesso
 
-| Ação | Administrador | Operador de estoque | Técnico | Consulta |
-|---|:-:|:-:|:-:|:-:|
-| Ver saldo e histórico | todos os locais | só os estoques liberados para ele | só o próprio estoque | todos os locais |
-| Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | só saída para cliente, do próprio estoque | |
-| Criar transferência (enviar) | ✓ | ✓ (do seu estoque) | | |
-| Confirmar recebimento | ✓ | ✓ (no seu estoque; no estoque de técnico que ele enviou ou da sua base) | ✓ (no próprio estoque) | |
-| Pedir material | ✓ | ✓ | ✓ | |
-| Atender pedido do técnico | ✓ | ✓ | | |
-| Cadastros (itens, clientes, técnicos, mínimos) e usuários | ✓ | | | |
-| Estornar movimentação | ✓ | | | |
+| Ação | Administrador | Operador de estoque | Técnico | Consulta | Agendamento |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Ver saldo e histórico | todos os locais | só os estoques liberados para ele | só o próprio estoque | todos os locais | todos os locais |
+| Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | só saída para cliente, do próprio estoque | | |
+| Criar transferência (enviar) | ✓ | ✓ (do seu estoque) | | | |
+| Confirmar recebimento | ✓ | ✓ (no seu estoque; no estoque de técnico que ele enviou ou da sua base) | ✓ (no próprio estoque) | | |
+| Fazer solicitação | ✓ (escolhe de onde e para onde) | ✓ (escolhe de onde e para onde) | ✓ (só para o próprio estoque, saindo do estoque base dele) | | ✓ (escolhe de onde e para onde) |
+| Atender solicitação | ✓ | ✓ (da origem que ele opera) | | | |
+| Cadastros (itens, clientes, técnicos, mínimos) e usuários | ✓ | | | | |
+| Estornar movimentação | ✓ | | | | |
 
 Essas regras são garantidas no banco de dados, não só nas telas.
 
@@ -37,8 +37,8 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 1. **Entre** com e-mail e senha. Quem ainda não tem conta usa "Primeiro acesso" e espera um administrador liberar.
 2. **Estoque**: veja o saldo por local, filtre por local ou busque um item. Itens abaixo do mínimo aparecem em destaque.
 3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Para criar um item dedicado, escolha o cliente em "Dedicado para (opcional)" na entrada por compra ou no ajuste.
-4. **Transferências**: escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
-5. **Solicitações** (técnico): peça os itens de que precisa. O operador atende e o material segue para o estoque do técnico. O técnico confirma o recebimento em Transferências.
+4. **Transferências**: a tela abre com as transferências em andamento e as concluídas; o botão **Nova transferência** abre o formulário. No formulário, escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
+5. **Solicitações**: a tela mostra as pendentes e as concluídas; o botão **Nova solicitação** abre o formulário. O técnico pede só para o próprio estoque, saindo do estoque base dele. Administrador, operador e agendamento escolhem de onde e para onde. Administrador e operador (da origem) atendem, e o envio segue como transferência; o destino confirma o recebimento em Transferências.
 6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega, e movimente-o: **Transferir** para outro estoque ou **Enviar ao cliente**.
 7. **Histórico**: veja as movimentações. O administrador pode estornar uma movimentação informando o motivo.
 
@@ -72,9 +72,9 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 2. `supabase/migrations/0002_seguranca_e_funcoes.sql`
 3. `supabase/migrations/0003_primeiro_administrador.sql`
 4. `supabase/seed.sql`
-5. `supabase/atualizar_0004_a_0008.sql` (técnicos, dedicados, chicotes, sem condição novo/usado; junta as migrações 0004 a 0008)
+5. `supabase/atualizar_0004_a_0009.sql` (técnicos, dedicados, chicotes, sem condição novo/usado, solicitações e agendamento; junta as migrações 0004 a 0009)
 
-Quem já tinha o sistema até a 0003 roda só o item 5. Quem já aplicou a 0004 roda só `supabase/atualizar_0005_a_0008.sql` (pode repetir sem problema). Os arquivos `0004` a `0008` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
+Quem já tinha o sistema até a 0003 roda só o item 5. Quem já aplicou a 0004 roda só `supabase/atualizar_0005_a_0009.sql`. Quem já aplicou até a 0008 roda só `supabase/migrations/0009_solicitacoes_e_agendamento.sql`. Todos podem ser repetidos sem problema. Os arquivos `0004` a `0009` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 

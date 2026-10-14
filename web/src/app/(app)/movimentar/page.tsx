@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Movimentar() {
   const usuario = (await getUsuario())!;
-  if (usuario.perfil === "consulta") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
+  if (usuario.perfil === "consulta" || usuario.perfil === "agendamento") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
   const sb = supabaseServer();
   const [{ operaveis, todos }, cat, { data: forn }, tecnicos] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome"), getTecnicos()]);
   // O técnico só dá baixa de saída para cliente, no próprio estoque/carro.

@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getUsuario } from "@/lib/dados";
+import { Colapsavel } from "@/components/Colapsavel";
 import { Acao } from "@/components/Acao";
 import { TransferenciaForm } from "@/components/TransferenciaForm";
 import { STATUS, nomeUnidade } from "@/lib/types";
@@ -40,10 +41,12 @@ export default async function Transferencias() {
     <div className="space-y-5">
       <h1 className="text-lg font-semibold">Transferências</h1>
       {podeEnviar && operaveis.length > 0 && (
-        <TransferenciaForm origens={operaveis} destinos={todos} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} />
+        <Colapsavel rotulo="Nova transferência"><TransferenciaForm origens={operaveis} destinos={todos} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} /></Colapsavel>
       )}
-      <div className="space-y-3">
-        {movs.map((m) => (
+      {[{ titulo: "Em andamento", lista: movs.filter((m) => m.status === "em_transito") }, { titulo: "Concluídas e canceladas", lista: movs.filter((m) => m.status !== "em_transito") }].map((g) => (
+      <section key={g.titulo} className="space-y-3">
+        <h2 className="font-medium">{g.titulo} ({g.lista.length})</h2>
+        {g.lista.map((m) => (
           <div key={m.id} className="card text-sm">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <strong>{nome.get(m.local_origem_id)} → {nome.get(m.local_destino_id)}</strong>
@@ -64,8 +67,9 @@ export default async function Transferencias() {
             )}
           </div>
         ))}
-        {movs.length === 0 && <p className="text-sm text-slate-500">Nenhuma transferência ainda.</p>}
-      </div>
+        {g.lista.length === 0 && <p className="text-sm text-slate-500">Nenhuma.</p>}
+      </section>
+      ))}
     </div>
   );
 }

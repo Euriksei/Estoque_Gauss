@@ -1,4 +1,4 @@
-export type Perfil = "admin" | "operador" | "tecnico" | "consulta";
+export type Perfil = "admin" | "operador" | "tecnico" | "consulta" | "agendamento";
 
 export type Usuario = { id: string; nome: string; email: string; perfil: Perfil; ativo: boolean };
 export type Vinculo = "pj" | "clt";
@@ -45,6 +45,7 @@ export const PERFIS: Record<Perfil, string> = {
   operador: "Operador de estoque",
   tecnico: "Técnico",
   consulta: "Consulta",
+  agendamento: "Agendamento (consulta e pede transferência)",
 };
 
 export const VINCULOS: Record<Vinculo, string> = { pj: "PJ", clt: "CLT" };

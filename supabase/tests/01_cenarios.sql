@@ -7,11 +7,13 @@ insert into auth.users (id,email,raw_user_meta_data) values
  ('00000000-0000-0000-0000-0000000000b1','nl@x','{"nome":"Op NL"}'),
  ('00000000-0000-0000-0000-0000000000b2','sbc@x','{"nome":"Op SBC"}'),
  ('00000000-0000-0000-0000-0000000000c1','tec@x','{"nome":"Tec"}'),
- ('00000000-0000-0000-0000-0000000000d1','cons@x','{"nome":"Cons"}');
+ ('00000000-0000-0000-0000-0000000000d1','cons@x','{"nome":"Cons"}'),
+ ('00000000-0000-0000-0000-0000000000e1','ag@x','{"nome":"Agenda"}');
 update usuario set ativo=true, perfil='admin' where email='admin@x';
 update usuario set ativo=true, perfil='operador' where email in ('nl@x','sbc@x');
 update usuario set ativo=true, perfil='tecnico' where email='tec@x';
 update usuario set ativo=true where email='cons@x';
+update usuario set ativo=true, perfil='agendamento' where email='ag@x';
 insert into usuario_local select u.id, l.id from usuario u, local l where (u.email='nl@x' and l.nome='Nova Lima') or (u.email='sbc@x' and l.nome like 'São%');
 insert into tecnico (nome,vinculo,usuario_id) select 'Tec CLT','clt',id from usuario where email='tec@x';
 insert into tecnico (nome,vinculo) values ('Ze PJ','pj');
@@ -106,6 +108,28 @@ select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_en
 \set ON_ERROR_STOP on
 select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',3,'reservado_unidade_id',u2)))) is not null from ids;
 select 'NL dedicado restante=' || (select sum(quantidade) from saldo where local_id=nl and reservado_unidade_id=u2) from ids;
+\echo '--- 7. Solicitações: técnico pede só da base dele; agendamento pede transferência mas não atende nem movimenta'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select criar_solicitacao(jsonb_build_object('origem_id',sbc,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',2)))) as sol2 from ids \gset
+select 'pedido do técnico: origem=' || (select l.nome from solicitacao s join local l on l.id=s.origem_id where s.id=:sol2) || ' (tentou SBC) destino=' || (select l.nome from solicitacao s join local l on l.id=s.destino_id where s.id=:sol2);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
+select criar_solicitacao(jsonb_build_object('origem_id',sbc,'destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',3)))) as sol3 from ids \gset
+select 'agendamento vê solicitações=' || (select count(*) from solicitacao) || ' e saldo linhas>0=' || ((select count(*) from saldo) > 0);
+\set ON_ERROR_STOP off
+\echo '--- agendamento tenta atender, transferir e registrar (devem falhar)'
+select atender_solicitacao(:sol3, '{"modo_envio":"correios"}'::jsonb);
+select criar_transferencia(jsonb_build_object('origem_id',sbc,'destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- agendamento sem origem (deve falhar)'
+select criar_solicitacao(jsonb_build_object('destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- Op SBC não opera Nova Lima: não atende o pedido do técnico (origem NL) (deve falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+select atender_solicitacao(:sol2, '{"modo_envio":"correios"}'::jsonb);
+\set ON_ERROR_STOP on
+\echo '--- Op NL atende o pedido do técnico (origem NL, destino carro)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select atender_solicitacao(:sol2, jsonb_build_object('modo_envio','tecnico','itens',jsonb_build_array(jsonb_build_object('produto_id',(select fmc from ids),'quantidade',2)))) is not null;
+select 'transferência em trânsito para o carro: ' || (select count(*) from transferencias_em_transito t where t.local_destino_id=(select car from ids));
 \echo '--- consulta não escreve; vê tudo'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
 \set ON_ERROR_STOP off
