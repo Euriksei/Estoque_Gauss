@@ -19,13 +19,13 @@ export default async function Usuarios() {
   return (
     <div className="space-y-3">
       <h1 className="text-lg font-semibold">Usuários</h1>
-      <p className="text-sm text-slate-600">Quem se cadastra fica inativo até você liberar. Operadores enxergam e movimentam só os estoques marcados; técnicos, só o próprio carro.</p>
+      <p className="text-sm text-slate-600">Quem se cadastra fica inativo até você liberar. Operadores enxergam e movimentam só os estoques marcados; técnicos, só o estoque ligado ao cadastro deles (veja Cadastros, Técnicos).</p>
       <div className="card overflow-x-auto p-0">
         <table className="w-full">
           <thead className="border-b border-slate-200"><tr><th className="th">Usuário</th><th className="th">Perfil</th><th className="th">Acesso</th><th className="th">Estoques</th></tr></thead>
           <tbody className="divide-y divide-slate-100">
             {usuarios.map((u) => (
-              <UsuarioLinha key={u.id} u={u} locais={todos} base={todos.filter((l) => l.tipo === "estoque")}
+              <UsuarioLinha key={u.id} u={u} locais={todos}
                 meusLocais={vinculos.filter((v) => v.usuario_id === u.id).map((v) => v.local_id)} />
             ))}
           </tbody>

@@ -13,7 +13,10 @@ update usuario set ativo=true, perfil='operador' where email in ('nl@x','sbc@x')
 update usuario set ativo=true, perfil='tecnico' where email='tec@x';
 update usuario set ativo=true where email='cons@x';
 insert into usuario_local select u.id, l.id from usuario u, local l where (u.email='nl@x' and l.nome='Nova Lima') or (u.email='sbc@x' and l.nome like 'São%');
-insert into local (nome,tipo,tecnico_id,base_id) select 'Carro Tec','tecnico',id,(select id from local where nome='Nova Lima') from usuario where email='tec@x';
+insert into tecnico (nome,vinculo,usuario_id) select 'Tec CLT','clt',id from usuario where email='tec@x';
+insert into tecnico (nome,vinculo) values ('Ze PJ','pj');
+insert into local (nome,tipo,tecnico_id,base_id) select 'Carro Tec','tecnico',t.id,(select id from local where nome='Nova Lima') from tecnico t where t.nome='Tec CLT';
+insert into local (nome,tipo,tecnico_id,base_id) select 'Estoque Ze PJ','tecnico',t.id,(select id from local where nome='Nova Lima') from tecnico t where t.nome='Ze PJ';
 insert into cliente(nome) values ('Gerdau'),('CSN'); insert into unidade_cliente(cliente_id,nome) select id,'Ouro Branco' from cliente where nome='Gerdau'; insert into unidade_cliente(cliente_id,nome) select id,'Mineração' from cliente where nome='CSN';
 create temp table ids as select
  (select id from local where nome='Nova Lima') nl, (select id from local where nome like 'São%') sbc, (select id from local where nome='Carro Tec') car,
@@ -26,7 +29,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1'
 select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'numero_nf','NF1','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',100)))) is not null from ids;
 \echo '--- 2. saída de 150 deve falhar'
 \set ON_ERROR_STOP off
-select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',150)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','correios','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',150)))) from ids;
 \echo '--- 3. Op NL transfere 10 p/ SBC (em trânsito) e saldos'
 \set ON_ERROR_STOP on
 select criar_transferencia(jsonb_build_object('origem_id',nl,'destino_id',sbc,'modo_envio','sedex','codigo_rastreio','AB123','prazo_chegada','2026-10-20','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',10)))) as transf from ids \gset
@@ -61,13 +64,21 @@ select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_i
 \echo '--- técnico tenta consumo interno (deve falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',car,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
 \echo '--- técnico tenta dar baixa em estoque do Nova Lima (deve falhar)'
-select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','correios','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
 \echo '--- técnico livre: reservado sendo usado como livre (saída de 9 > 8 livres) deve falhar'
 select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',car,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',9)))) from ids;
 \set ON_ERROR_STOP on
 \echo '--- técnico entrega os 5 reservados ao Ouro Branco (sem chamado)'
 select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',car,'unidade_id',u1,'finalidade','mobilizacao','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',5,'reservado_unidade_id',u1)))) is not null from ids;
 select 'dedicado: ' || (select string_agg(situacao||':'||quantidade, ',') from dedicados_posicao) || ' hist=' || (select count(*) from dedicados_historico);
+\echo '--- saída com modo de envio: operador NL sem modo (deve falhar), modo técnico sem técnico (deve falhar), modo técnico PJ sem login (ok)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+\set ON_ERROR_STOP off
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\set ON_ERROR_STOP on
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'chamado_url','','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',2)))) is not null from ids;
+select 'saídas com técnico: ' || (select string_agg(coalesce(t.nome,'-')||'/'||m.modo_envio, ', ' order by m.id) from movimentacao m left join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE');
 \echo '--- consulta não escreve; vê tudo'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
 \set ON_ERROR_STOP off

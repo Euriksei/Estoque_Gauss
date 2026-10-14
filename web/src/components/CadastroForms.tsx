@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { VINCULOS, type Tecnico, type Vinculo } from "@/lib/types";
 
 type Opt = { id: number; nome: string };
 
@@ -79,5 +80,66 @@ export function EstoqueMinimo({ id, valor }: { id: number; valor: number }) {
       {v !== valor && <button className="btn-sec" onClick={() => salvar(() => supabaseBrowser().from("produto").update({ estoque_minimo: v }).eq("id", id))}>Salvar</button>}
       {erro && <span className="text-xs text-red-700">{erro}</span>}
     </span>
+  );
+}
+
+export function NovoTecnico({ usuarios }: { usuarios: { id: string; nome: string; email: string }[] }) {
+  const [nome, setNome] = useState("");
+  const [vinculo, setVinculo] = useState<Vinculo>("clt");
+  const [usuarioId, setUsuarioId] = useState("");
+  const { erro, salvar } = useSalvar();
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={async (e) => {
+      e.preventDefault();
+      await salvar(async () => {
+        const sb = supabaseBrowser();
+        const { data, error } = await sb.from("tecnico").insert({ nome, vinculo, usuario_id: usuarioId || null }).select("id").single();
+        if (error || !data) return { error: error ?? { message: "Não foi possível cadastrar" } };
+        // Cada técnico já nasce com o próprio estoque.
+        return sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[vinculo]} - ${nome}`, tipo: "tecnico", tecnico_id: data.id });
+      });
+      setNome(""); setUsuarioId("");
+    }}>
+      <label className="text-sm">Novo técnico<input className="campo mt-1" value={nome} onChange={(e) => setNome(e.target.value)} required /></label>
+      <label className="text-sm">Vínculo
+        <select className="campo mt-1" value={vinculo} onChange={(e) => setVinculo(e.target.value as Vinculo)}>
+          <option value="clt">CLT</option><option value="pj">PJ</option>
+        </select></label>
+      <label className="text-sm">Acessa o sistema como (opcional)
+        <select className="campo mt-1" value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)}>
+          <option value="">Sem login</option>
+          {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>)}
+        </select></label>
+      <button className="btn">Cadastrar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
+    </form>
+  );
+}
+
+export function TecnicoLinha({ t, usuarios, estoque }: { t: Tecnico; usuarios: { id: string; nome: string; email: string }[]; estoque: string | null }) {
+  const { erro, salvar } = useSalvar();
+  const sb = supabaseBrowser();
+  const atualizar = (parte: Partial<Tecnico>) => salvar(() => sb.from("tecnico").update(parte).eq("id", t.id));
+  return (
+    <tr className="align-top">
+      <td className="td font-medium">{t.nome}</td>
+      <td className="td">
+        <select className="campo w-auto" value={t.vinculo} onChange={(e) => atualizar({ vinculo: e.target.value as Vinculo })}>
+          <option value="clt">CLT</option><option value="pj">PJ</option>
+        </select>
+      </td>
+      <td className="td">
+        <select className="campo w-auto" value={t.usuario_id ?? ""} onChange={(e) => atualizar({ usuario_id: e.target.value || null })}>
+          <option value="">Sem login</option>
+          {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+        </select>
+      </td>
+      <td className="td">
+        <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={t.ativo} onChange={(e) => atualizar({ ativo: e.target.checked })} /> Ativo</label>
+      </td>
+      <td className="td text-sm">
+        {estoque ?? <button className="btn-sec" onClick={() => salvar(() => sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[t.vinculo]} - ${t.nome}`, tipo: "tecnico", tecnico_id: t.id }))}>Criar estoque</button>}
+        {erro && <div className="text-xs text-red-700">{erro}</div>}
+      </td>
+    </tr>
   );
 }

@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PERFIS, type Local, type Perfil, type Usuario } from "@/lib/types";
 
-export function UsuarioLinha({ u, locais, meusLocais, base }: { u: Usuario; locais: Local[]; meusLocais: number[]; base: Local[] }) {
+export function UsuarioLinha({ u, locais, meusLocais }: { u: Usuario; locais: Local[]; meusLocais: number[] }) {
   const router = useRouter();
   const [erro, setErro] = useState("");
   const sb = supabaseBrowser();
-  const carro = locais.find((l) => l.tecnico_id === u.id);
+  const carro = locais.find((l) => l.tecnico?.usuario_id === u.id);
 
   async function rodar(p: PromiseLike<{ error: { message: string } | null }>) {
     const { error } = await p;
@@ -38,9 +38,7 @@ export function UsuarioLinha({ u, locais, meusLocais, base }: { u: Usuario; loca
                 : sb.from("usuario_local").delete().eq("usuario_id", u.id).eq("local_id", l.id))} /> {l.nome}
           </label>
         ))}
-        {u.perfil === "tecnico" && (carro
-          ? <span className="text-sm">Carro: {carro.nome}</span>
-          : <button className="btn-sec" onClick={() => rodar(sb.from("local").insert({ nome: `Carro ${u.nome}`, tipo: "tecnico", tecnico_id: u.id, base_id: base[0]?.id ?? null }))}>Criar estoque/carro</button>)}
+        {u.perfil === "tecnico" && <a className="text-sm underline" href="/cadastros">{carro ? `Estoque: ${carro.nome}` : "Ligue este login a um técnico em Cadastros"}</a>}
         {erro && <div className="text-xs text-red-700">{erro}</div>}
       </td>
     </tr>

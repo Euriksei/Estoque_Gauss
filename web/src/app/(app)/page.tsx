@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 type Linha = { local_id: number; produto_id: number; condicao: "novo" | "usado"; reservado_unidade_id: number | null; quantidade: number };
 
-export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string } }) {
+export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string } }) {
   const usuario = (await getUsuario())!;
   const sb = supabaseServer();
   const [{ data }, { produtos, unidades }, { todos }] = await Promise.all([
@@ -17,6 +17,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
   const visiveis = todos.filter((l) => saldo.some((s) => s.local_id === l.id));
   const filtroLocal = searchParams.local ? Number(searchParams.local) : null;
   const q = (searchParams.q ?? "").toLowerCase();
+  const grupoDe = (id: number) => { const l = todos.find((x) => x.id === id); return l?.tipo === "tecnico" ? `tec-${l.tecnico?.vinculo}` : "fixo"; };
 
   const nomeProduto = new Map(produtos.map((p) => [p.id, p]));
   const nomeUn = new Map(unidades.map((u) => [u.id, nomeUnidade(u)]));
@@ -24,6 +25,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
 
   const linhas = saldo
     .filter((s) => (filtroLocal ? s.local_id === filtroLocal : true))
+    .filter((s) => (searchParams.grupo ? grupoDe(s.local_id) === searchParams.grupo : true))
     .filter((s) => (q ? (nomeProduto.get(s.produto_id)?.nome ?? "").toLowerCase().includes(q) : true));
 
   // Alerta de estoque mínimo: soma do estoque livre dos locais fixos (não conta o carro do técnico nem dedicados).
@@ -54,6 +56,14 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
           <select name="local" defaultValue={searchParams.local ?? ""} className="campo w-auto">
             <option value="">Todos os locais</option>
             {visiveis.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+          </select>
+        )}
+        {visiveis.length > 1 && (
+          <select name="grupo" defaultValue={searchParams.grupo ?? ""} className="campo w-auto">
+            <option value="">Todos os tipos de estoque</option>
+            <option value="fixo">Estoques fixos</option>
+            <option value="tec-pj">Estoque técnico PJ</option>
+            <option value="tec-clt">Estoque técnico CLT</option>
           </select>
         )}
         <input name="q" defaultValue={searchParams.q ?? ""} placeholder="Buscar item" className="campo w-60" />

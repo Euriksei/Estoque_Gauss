@@ -93,3 +93,9 @@ Entendi que enviar um Módulo Galileo significa enviar também um Chicote Galile
 ## 6. Próximo passo
 
 Montar a primeira versão do sistema (telas de cadastro, movimentações, transferência com recebimento, estoque do técnico e acompanhamento dos dedicados). Falta só você confirmar a plataforma de banco de dados que prefere, se tiver preferência (minha sugestão: Supabase/PostgreSQL, que já traz login e segurança por perfil).
+
+## 6. Atualização: técnicos e modo de envio (migração 0004)
+
+- **Técnicos** são cadastro próprio (`tecnico`): nome, vínculo **CLT ou PJ**, login opcional e situação (ativo ou não). Cada técnico tem o seu estoque (um local do tipo "técnico"). Técnicos sem login existem só para serem registrados como quem leva o material ao cliente.
+- **Saída para cliente** passa a ter **modo de envio** obrigatório (correios, sedex, retirada, transportadora ou técnico). Quando o modo é "técnico", informa-se qual técnico leva; quando o próprio técnico dá a baixa, ele é registrado automaticamente.
+- O código de rastreio vale para correios, sedex e transportadora.

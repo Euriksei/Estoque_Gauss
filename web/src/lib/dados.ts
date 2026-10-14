@@ -1,5 +1,5 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import type { Associado, Local, Produto, Unidade, Usuario } from "@/lib/types";
+import type { Associado, Local, Produto, Tecnico, Unidade, Usuario } from "@/lib/types";
 export { nomeUnidade } from "@/lib/types";
 
 export async function getUsuario(): Promise<Usuario | null> {
@@ -13,11 +13,11 @@ export async function getUsuario(): Promise<Usuario | null> {
 // Locais que o usuário pode movimentar (espelha fn_pode_operar_local do banco).
 export async function getLocais(usuario: Usuario) {
   const sb = supabaseServer();
-  const { data } = await sb.from("local").select("*").eq("ativo", true).order("nome");
-  const todos = (data ?? []) as Local[];
+  const { data } = await sb.from("local").select("*, tecnico(nome, vinculo, usuario_id)").eq("ativo", true).order("nome");
+  const todos = (data ?? []) as unknown as Local[];
   let operaveis: Local[] = [];
   if (usuario.perfil === "admin") operaveis = todos;
-  else if (usuario.perfil === "tecnico") operaveis = todos.filter((l) => l.tecnico_id === usuario.id);
+  else if (usuario.perfil === "tecnico") operaveis = todos.filter((l) => l.tecnico?.usuario_id === usuario.id);
   else if (usuario.perfil === "operador") {
     const { data: ul } = await sb.from("usuario_local").select("local_id").eq("usuario_id", usuario.id);
     const ids = new Set((ul ?? []).map((x: { local_id: number }) => x.local_id));
@@ -40,3 +40,8 @@ export async function getCatalogo() {
   };
 }
 
+
+export async function getTecnicos() {
+  const { data } = await supabaseServer().from("tecnico").select("*").order("nome");
+  return (data ?? []) as Tecnico[];
+}

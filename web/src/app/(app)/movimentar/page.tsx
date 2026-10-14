@@ -1,5 +1,5 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import { getCatalogo, getLocais, getUsuario } from "@/lib/dados";
+import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
 import { MovimentarForm } from "@/components/MovimentarForm";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export default async function Movimentar() {
   const usuario = (await getUsuario())!;
   if (usuario.perfil === "consulta") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
   const sb = supabaseServer();
-  const [{ operaveis }, cat, { data: forn }] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome")]);
+  const [{ operaveis }, cat, { data: forn }, tecnicos] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome"), getTecnicos()]);
   // O técnico só dá baixa de saída para cliente, no próprio estoque/carro.
   const tipos = usuario.perfil === "tecnico"
     ? ["SAIDA_CLIENTE"]
@@ -18,7 +18,8 @@ export default async function Movimentar() {
       <h1 className="text-lg font-semibold">{usuario.perfil === "tecnico" ? "Dar baixa no cliente" : "Registrar entrada ou saída"}</h1>
       {operaveis.length === 0
         ? <p className="text-sm">Você ainda não tem um estoque liberado. Fale com um administrador.</p>
-        : <MovimentarForm tipos={tipos} locais={operaveis} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} fornecedores={forn ?? []} />}
+        : <MovimentarForm tipos={tipos} locais={operaveis} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} fornecedores={forn ?? []}
+            tecnicos={tecnicos.filter((t) => t.ativo)} ehTecnico={usuario.perfil === "tecnico"} />}
     </div>
   );
 }

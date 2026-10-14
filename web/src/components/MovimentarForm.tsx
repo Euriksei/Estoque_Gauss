@@ -3,11 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
-import { TIPOS, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Unidade } from "@/lib/types";
+import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Tecnico, type Unidade } from "@/lib/types";
 
-type Props = { tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[] };
+type Props = { tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean };
 
-export function MovimentarForm({ tipos, locais, produtos, unidades, associados, fornecedores }: Props) {
+export function MovimentarForm({ tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico }: Props) {
   const router = useRouter();
   const [tipo, setTipo] = useState(tipos[0]);
   const [localId, setLocalId] = useState<number | "">(locais.length === 1 ? locais[0].id : "");
@@ -17,12 +17,16 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
   const [nf, setNf] = useState("");
   const [finalidade, setFinalidade] = useState("");
   const [chamado, setChamado] = useState("");
+  const [modo, setModo] = useState("");
+  const [rastreio, setRastreio] = useState("");
+  const [tecnicoId, setTecnicoId] = useState<number | "">("");
   const [obs, setObs] = useState("");
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()]);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   const cliente = tipo === "SAIDA_CLIENTE" || tipo === "DEVOLUCAO_CLIENTE";
+  const saida = tipo === "SAIDA_CLIENTE";
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +36,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
       p: {
         tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
         numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens),
+        modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null,
       },
     });
     setEnviando(false);
@@ -40,6 +45,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
     setItens([itemVazio()]);
     setObs("");
     setChamado("");
+    setRastreio("");
     setNf("");
     router.refresh();
   }
@@ -80,6 +86,30 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
               </select>
             </label>
           )}
+          {saida && !ehTecnico && (
+            <>
+              <label className="text-sm">Modo de envio
+                <select className="campo mt-1" value={modo} onChange={(e) => { setModo(e.target.value); setTecnicoId(""); }} required>
+                  <option value="">Selecione</option>
+                  {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              {modo === "tecnico" && (
+                <label className="text-sm sm:col-span-2">Técnico que leva o material
+                  <select className="campo mt-1" value={tecnicoId} onChange={(e) => setTecnicoId(Number(e.target.value))} required>
+                    <option value="">Selecione</option>
+                    {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nome} ({VINCULOS[t.vinculo]})</option>)}
+                  </select>
+                </label>
+              )}
+              {MODOS_COM_RASTREIO.includes(modo) && (
+                <label className="text-sm sm:col-span-2">Código de rastreio
+                  <input className="campo mt-1" value={rastreio} onChange={(e) => setRastreio(e.target.value)} />
+                </label>
+              )}
+            </>
+          )}
+          {saida && ehTecnico && <p className="text-sm text-slate-600 sm:col-span-3">Envio por técnico: você é registrado como o técnico que levou o material.</p>}
           <label className="text-sm sm:col-span-3">Link do chamado no Jira (opcional)
             <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
           </label>
