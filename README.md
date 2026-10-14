@@ -74,7 +74,7 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 4. `supabase/seed.sql`
 5. `supabase/atualizar_0004_a_0008.sql` (técnicos, dedicados, chicotes, sem condição novo/usado; junta as migrações 0004 a 0008)
 
-Quem já tinha o sistema até a 0003 roda só o item 5. Os arquivos `0004` a `0008` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
+Quem já tinha o sistema até a 0003 roda só o item 5. Quem já aplicou a 0004 roda só `supabase/atualizar_0005_a_0008.sql` (pode repetir sem problema). Os arquivos `0004` a `0008` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 
