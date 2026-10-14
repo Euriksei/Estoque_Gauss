@@ -173,7 +173,8 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
         </div>
       )}
 
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={tipo === "SAIDA_CLIENTE" || paraTecnico ? associados : []}
+      <ItensEditor key={tipo} itens={itens} onChange={setItens} produtos={produtos} associados={associados}
+        chicote={tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" ? "sempre" : tipo === "SAIDA_CLIENTE" || paraTecnico ? "opcional" : "nenhum"}
         unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; use quantidade negativa para baixar)" : "Observação"}

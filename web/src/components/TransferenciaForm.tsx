@@ -65,7 +65,7 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
           <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
         </label>
       </div>
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="opcional" />
       <label className="block text-sm">Observação
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
       </label>

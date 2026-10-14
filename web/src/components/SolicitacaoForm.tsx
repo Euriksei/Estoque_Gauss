@@ -26,7 +26,7 @@ export function SolicitacaoForm({ produtos, associados }: { produtos: Produto[];
   return (
     <form onSubmit={enviar} className="card space-y-3">
       <h2 className="font-medium">Pedir material</h2>
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={[]} />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={[]} chicote="opcional" />
       <label className="block text-sm">Link do chamado (opcional)
         <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} />
       </label>

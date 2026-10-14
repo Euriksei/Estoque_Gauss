@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { nomeUnidade, type Associado, type ItemForm, type Produto, type Unidade } from "@/lib/types";
 
 type Props = {
@@ -10,11 +11,16 @@ type Props = {
   // "reservado": usar item já reservado (saída/ajuste); "reservar": reservar no destino (transferência)
   reserva?: "reservado" | "reservar" | "nenhuma";
   permiteNegativo?: boolean;
+  // Chicote que acompanha o módulo: "sempre" (entrada: já vem junto, editável), "opcional" (saída: caixa
+  // "Enviar chicote junto", marcada por padrão) ou "nenhum".
+  chicote?: "sempre" | "opcional" | "nenhum";
 };
 
 export const itemVazio = (): ItemForm => ({ produto_id: "", condicao: "novo", quantidade: 1 });
 
-export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo }: Props) {
+export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
+  const [junto, setJunto] = useState(true);
+  const sugerir = chicote === "sempre" || (chicote === "opcional" && junto);
   const nomeUn = (u: Unidade) => nomeUnidade(u);
 
   function mudar(i: number, parte: Partial<ItemForm>) {
@@ -24,11 +30,27 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
   // Ao escolher um item, sugere os associados (ex.: módulo Galileo -> chicote Galileo); tudo editável.
   function escolher(i: number, produtoId: number | "") {
     const novos = itens.map((it, k) => (k === i ? { ...it, produto_id: produtoId } : it));
-    if (produtoId !== "") {
+    if (produtoId !== "" && sugerir) {
       const qtd = novos[i].quantidade || 1;
       for (const a of associados.filter((x) => x.produto_id === produtoId)) {
         if (!novos.some((it) => it.produto_id === a.associado_id)) {
-          novos.push({ ...itemVazio(), produto_id: a.associado_id, quantidade: a.quantidade * qtd });
+          novos.push({ ...itemVazio(), produto_id: a.associado_id, quantidade: a.quantidade * qtd, auto: true });
+        }
+      }
+    }
+    onChange(novos);
+  }
+
+  // Marcar a caixa acrescenta os chicotes dos módulos já escolhidos; desmarcar tira os que foram sugeridos.
+  function alternar(marcado: boolean) {
+    setJunto(marcado);
+    if (!marcado) return onChange(itens.filter((it) => !it.auto));
+    const novos = [...itens];
+    for (const it of itens) {
+      if (it.produto_id === "") continue;
+      for (const a of associados.filter((x) => x.produto_id === it.produto_id)) {
+        if (!novos.some((n) => n.produto_id === a.associado_id)) {
+          novos.push({ ...itemVazio(), produto_id: a.associado_id, quantidade: a.quantidade * (it.quantidade || 1), auto: true });
         }
       }
     }
@@ -37,6 +59,13 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
 
   return (
     <div className="space-y-2">
+      {chicote === "opcional" && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={junto} onChange={(e) => alternar(e.target.checked)} />
+          Enviar chicote junto com o módulo (desmarque para enviar só o módulo)
+        </label>
+      )}
+      {chicote === "sempre" && <p className="text-xs text-slate-600">Ao escolher um módulo, o chicote dele entra junto (você pode editar a quantidade ou remover).</p>}
       {itens.map((it, i) => (
         <div key={i} className="grid grid-cols-12 items-end gap-2">
           <label className="col-span-12 text-xs sm:col-span-5">{i === 0 && "Item"}

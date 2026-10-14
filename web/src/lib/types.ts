@@ -18,6 +18,7 @@ export type ItemForm = {
   quantidade: number;
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";
+  auto?: boolean; // sugerido como chicote do módulo
 };
 
 export const TIPOS: Record<string, string> = {
