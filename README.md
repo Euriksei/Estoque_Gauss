@@ -53,7 +53,7 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 
 ```
 docs/        modelo de dados e catálogo de itens (94 itens em 15 categorias)
-supabase/    banco de dados: migrações, carga inicial e testes
+supabase/    banco de dados completo (um arquivo só, com os dados iniciais) e testes
 web/         aplicativo web (Next.js 14 + Tailwind + Supabase)
 ```
 
