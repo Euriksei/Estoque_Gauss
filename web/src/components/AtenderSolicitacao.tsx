@@ -20,7 +20,7 @@ export function AtenderSolicitacao({ id }: { id: number }) {
         });
         if (error) setErro(error.message); else router.refresh();
       }}>Atender (enviar)</button>
-      {erro && <span className="text-xs text-red-700">{erro}</span>}
+      {erro && <span className="text-xs text-marca-700">{erro}</span>}
     </div>
   );
 }

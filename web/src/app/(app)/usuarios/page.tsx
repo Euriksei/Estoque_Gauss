@@ -18,7 +18,7 @@ export default async function Usuarios() {
   const vinculos = (ul.data ?? []) as { usuario_id: string; local_id: number }[];
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold">Usuários</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Usuários</h1>
       <p className="text-sm text-slate-600">Quem se cadastra fica inativo até você liberar. Operadores enxergam e movimentam só os estoques marcados; técnicos, só o estoque ligado ao cadastro deles (veja Cadastros, Técnicos).</p>
       <div className="card overflow-x-auto p-0">
         <table className="w-full">

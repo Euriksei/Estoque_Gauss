@@ -25,7 +25,7 @@ export function NovoCliente() {
   return (
     <form className="flex flex-wrap items-end gap-2" onSubmit={async (e) => { e.preventDefault(); await salvar(() => supabaseBrowser().from("cliente").insert({ nome })); setNome(""); }}>
       <label className="text-sm">Novo cliente<input className="campo mt-1" value={nome} onChange={(e) => setNome(e.target.value)} required /></label>
-      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
+      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-marca-700">{erro}</span>}
     </form>
   );
 }
@@ -43,7 +43,7 @@ export function NovaUnidade({ clientes }: { clientes: Opt[] }) {
         </select></label>
       <label className="text-sm">Nova unidade<input className="campo mt-1" value={nome} onChange={(e) => setNome(e.target.value)} required /></label>
       <label className="text-sm">Responsável<input className="campo mt-1" value={resp} onChange={(e) => setResp(e.target.value)} /></label>
-      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
+      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-marca-700">{erro}</span>}
     </form>
   );
 }
@@ -66,7 +66,7 @@ export function NovoProduto({ categorias, fornecedores }: { categorias: Opt[]; f
           <option value="">-</option>{fornecedores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select></label>
       <label className="flex flex-col text-sm">Mínimo<input type="number" min={0} className="campo mt-1 w-24" value={min} onChange={(e) => setMin(Number(e.target.value))} /></label>
-      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
+      <button className="btn">Adicionar</button>{erro && <span className="text-xs text-marca-700">{erro}</span>}
     </form>
   );
 }
@@ -110,7 +110,7 @@ export function EstoqueMinimo({ id, valor }: { id: number; valor: number }) {
     <span className="inline-flex items-center gap-1">
       <input type="number" min={0} className="campo w-20" value={v} onChange={(e) => setV(Number(e.target.value))} />
       {v !== valor && <button className="btn-sec" onClick={() => salvar(() => supabaseBrowser().from("produto").update({ estoque_minimo: v }).eq("id", id))}>Salvar</button>}
-      {erro && <span className="text-xs text-red-700">{erro}</span>}
+      {erro && <span className="text-xs text-marca-700">{erro}</span>}
     </span>
   );
 }
@@ -148,7 +148,7 @@ export function NovoTecnico({ usuarios, bases }: { usuarios: { id: string; nome:
           <option value="">Sem login</option>
           {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>)}
         </select></label>
-      <button className="btn">Cadastrar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
+      <button className="btn">Cadastrar</button>{erro && <span className="text-xs text-marca-700">{erro}</span>}
     </form>
   );
 }
@@ -184,7 +184,7 @@ export function TecnicoLinha({ t, usuarios, estoque, localId, baseId, bases }: {
       </td>
       <td className="td text-sm">
         {estoque ?? <button className="btn-sec" onClick={() => salvar(() => sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[t.vinculo]} - ${t.nome}`, tipo: "tecnico", tecnico_id: t.id }))}>Criar estoque</button>}
-        {erro && <div className="text-xs text-red-700">{erro}</div>}
+        {erro && <div className="text-xs text-marca-700">{erro}</div>}
       </td>
     </tr>
   );

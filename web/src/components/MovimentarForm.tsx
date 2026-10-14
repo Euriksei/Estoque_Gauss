@@ -180,7 +180,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />
       </label>
 
-      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.texto}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-marca-700"}`}>{msg.texto}</p>}
       <button className="btn" disabled={enviando}>Registrar</button>
     </form>
   );

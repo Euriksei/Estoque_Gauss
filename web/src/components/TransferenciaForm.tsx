@@ -69,7 +69,7 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
       <label className="block text-sm">Observação
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
       </label>
-      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.texto}</p>}
+      {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-marca-700"}`}>{msg.texto}</p>}
       <button className="btn">Enviar</button>
     </form>
   );

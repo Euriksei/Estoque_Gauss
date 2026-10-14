@@ -39,7 +39,7 @@ export function UsuarioLinha({ u, locais, meusLocais }: { u: Usuario; locais: Lo
           </label>
         ))}
         {u.perfil === "tecnico" && <a className="text-sm underline" href="/cadastros">{carro ? `Estoque: ${carro.nome}` : "Ligue este login a um técnico em Cadastros"}</a>}
-        {erro && <div className="text-xs text-red-700">{erro}</div>}
+        {erro && <div className="text-xs text-marca-700">{erro}</div>}
       </td>
     </tr>
   );

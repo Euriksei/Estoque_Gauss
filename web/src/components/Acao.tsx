@@ -21,7 +21,7 @@ export function Acao({ fn, args, texto, confirmar, pedirMotivo, secundario }: {
         setOcupado(false);
         if (error) setErro(error.message); else { setErro(""); router.refresh(); }
       }}>{texto}</button>
-      {erro && <span className="ml-2 text-xs text-red-700">{erro}</span>}
+      {erro && <span className="ml-2 text-xs text-marca-700">{erro}</span>}
     </span>
   );
 }

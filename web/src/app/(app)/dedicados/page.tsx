@@ -30,7 +30,7 @@ export default async function Dedicados() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Itens dedicados a clientes</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Itens dedicados a clientes</h1>
       <p className="text-sm text-slate-600">Itens reservados para um cliente ficam fora do estoque livre. Aqui você acompanha onde está cada um, do estoque até a entrega. Depois de dedicado, o item só se movimenta por esta tela: transferir para outro estoque ou enviar ao cliente.</p>
       {unidadesComItens.length === 0 && <p className="text-sm text-slate-500">Nenhum item dedicado ainda. Para criar um, use "Dedicado para" em Registrar (entrada por compra, ajuste) ou em Transferências.</p>}
       {unidadesComItens.map((u) => (

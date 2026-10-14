@@ -44,7 +44,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">{usuario.perfil === "tecnico" ? "Meu estoque" : "Estoque"}</h1>
+      <h1 className="text-xl font-bold text-marinho-900">{usuario.perfil === "tecnico" ? "Meu estoque" : "Estoque"}</h1>
 
       {abaixo.length > 0 && (
         <div className="card border-amber-300 bg-amber-50 text-sm">

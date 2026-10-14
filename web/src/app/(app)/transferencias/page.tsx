@@ -39,7 +39,7 @@ export default async function Transferencias() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Transferências</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Transferências</h1>
       {podeEnviar && operaveis.length > 0 && (
         <Colapsavel rotulo="Nova transferência"><TransferenciaForm origens={operaveis} destinos={todos} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} /></Colapsavel>
       )}

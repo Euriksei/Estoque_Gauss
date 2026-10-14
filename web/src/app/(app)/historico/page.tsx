@@ -27,7 +27,7 @@ export default async function Historico() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Histórico de movimentações</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Histórico de movimentações</h1>
       <p className="text-sm text-slate-600">As transferências ficam na aba Transferências.</p>
       <div className="card overflow-x-auto p-0">
         <table className="w-full">

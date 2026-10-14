@@ -31,7 +31,7 @@ export default async function Solicitacoes() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold">Solicitações de material</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Solicitações de material</h1>
       {podeSolicitar && (
         <Colapsavel rotulo="Nova solicitação">
           <SolicitacaoForm produtos={cat.produtos} associados={cat.associados} unidades={cat.unidades} locais={todos}

@@ -100,7 +100,7 @@ export function DedicadoAcoes({ unidadeId, produtoId, localId, max, destinos, te
           )}
           <div className="sm:col-span-4">
             <button className="btn" disabled={ocupado}>{aberto === "transferir" ? "Enviar transferência" : "Registrar saída"}</button>
-            {msg && <span className="ml-2 text-xs text-red-700">{msg}</span>}
+            {msg && <span className="ml-2 text-xs text-marca-700">{msg}</span>}
           </div>
         </form>
       )}
