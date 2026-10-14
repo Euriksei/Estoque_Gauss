@@ -71,12 +71,10 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 1. `supabase/migrations/0001_schema.sql`
 2. `supabase/migrations/0002_seguranca_e_funcoes.sql`
 3. `supabase/migrations/0003_primeiro_administrador.sql`
-4. `supabase/migrations/0004_tecnicos_e_modo_de_envio.sql`
-5. `supabase/migrations/0005_dedicados_e_confirmacao.sql`
-6. `supabase/migrations/0006_chicote_fmc130_fmc150.sql`
-7. `supabase/migrations/0007_chicote_para_todos_os_rastreadores.sql`
-8. `supabase/migrations/0008_sem_condicao_novo_usado.sql`
-9. `supabase/seed.sql`
+4. `supabase/seed.sql`
+5. `supabase/atualizar_0004_a_0008.sql` (técnicos, dedicados, chicotes, sem condição novo/usado; junta as migrações 0004 a 0008)
+
+Quem já tinha o sistema até a 0003 roda só o item 5. Os arquivos `0004` a `0008` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 
