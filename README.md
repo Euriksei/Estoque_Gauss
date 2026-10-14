@@ -13,6 +13,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 - **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
 - **Chicote junto com o módulo** (todos os rastreadores Ruptela, GalileoSky e Teltonika): na **entrada** (compra, devolução) e na **saída** (para cliente, para estoque técnico, transferência) há uma caixa de chicote junto, marcada por padrão; desmarque quando for só o módulo. Quantidades sempre editáveis.
 - **Condição**: entrada por compra é sempre "novo"; "usado" é escolhido na devolução de cliente (e nas saídas, transferências e ajustes, para mexer no saldo usado). Quantidades nunca aceitam negativo: no ajuste de inventário escolha **Aumentar** ou **Reduzir**.
+- **Busca nos seletores**: item e cliente/unidade ficam em ordem alfabética e filtram enquanto você digita.
 - **Alerta de estoque mínimo** na tela de Estoque.
 - **Auditoria**: nada é apagado. Correções são estornos, feitos só por administrador, e ficam registradas.
 

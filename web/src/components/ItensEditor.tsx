@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Busca } from "@/components/Busca";
 import { nomeUnidade, type Associado, type ItemForm, type Produto, type Unidade } from "@/lib/types";
 
 type Props = {
@@ -70,14 +71,10 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
       )}
       {itens.map((it, i) => (
         <div key={i} className="grid grid-cols-12 items-end gap-2">
-          <label className="col-span-12 text-xs sm:col-span-5">{i === 0 && "Item"}
-            <select className="campo" value={it.produto_id} onChange={(e) => escolher(i, e.target.value ? Number(e.target.value) : "")} required>
-              <option value="">Selecione o item</option>
-              {produtos.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </select>
-          </label>
+          <div className="col-span-12 text-xs sm:col-span-5">{i === 0 && <span className="block">Item</span>}
+            <Busca required value={it.produto_id} onChange={(v) => escolher(i, v)} placeholder="Digite para buscar o item"
+              opcoes={produtos.map((p) => ({ value: p.id, label: p.nome }))} />
+          </div>
           {condicaoFixaNovo ? (
             <p className="col-span-4 pb-2 text-xs text-slate-600 sm:col-span-2">{i === 0 && <span className="block">Condição</span>}Novo</p>
           ) : (
@@ -102,19 +99,11 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
               onChange={(e) => { const n = Math.floor(Number(e.target.value)); mudar(i, { quantidade: n > 0 ? n : 0 }); }} required />
           </label>
           {reserva !== "nenhuma" && (
-            <label className="col-span-12 text-xs sm:col-span-3">{i === 0 && (reserva === "reservar" ? "Dedicado para (opcional)" : "Item reservado de (opcional)")}
-              <select className="campo"
+            <div className="col-span-12 text-xs sm:col-span-3">{i === 0 && <span className="block">{reserva === "reservar" ? "Dedicado para (opcional)" : "Item reservado de (opcional)"}</span>}
+              <Busca vazio="Estoque livre" placeholder="Estoque livre" opcoes={unidades.map((u) => ({ value: u.id, label: nomeUn(u) }))}
                 value={(reserva === "reservar" ? it.reservar_para_unidade_id : it.reservado_unidade_id) ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value ? Number(e.target.value) : "";
-                  mudar(i, reserva === "reservar" ? { reservar_para_unidade_id: v } : { reservado_unidade_id: v });
-                }}>
-                <option value="">Estoque livre</option>
-                {unidades.map((u) => (
-                  <option key={u.id} value={u.id}>{nomeUn(u)}</option>
-                ))}
-              </select>
-            </label>
+                onChange={(v) => mudar(i, reserva === "reservar" ? { reservar_para_unidade_id: v } : { reservado_unidade_id: v })} />
+            </div>
           )}
           <button type="button" className="btn-sec col-span-2 sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
             Tirar da lista

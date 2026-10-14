@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { Busca } from "@/components/Busca";
 import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
 import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Tecnico, type Unidade } from "@/lib/types";
 
@@ -88,12 +89,10 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
 
       {cliente && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-sm sm:col-span-2">Cliente / unidade
-            <select className="campo mt-1" value={unidadeId} onChange={(e) => setUnidadeId(Number(e.target.value))} required>
-              <option value="">Selecione</option>
-              {unidades.map((u) => <option key={u.id} value={u.id}>{nomeUnidade(u)}</option>)}
-            </select>
-          </label>
+          <div className="text-sm sm:col-span-2">Cliente / unidade
+            <div className="mt-1"><Busca required value={unidadeId} onChange={setUnidadeId} placeholder="Digite para buscar o cliente"
+              opcoes={unidades.map((u) => ({ value: u.id, label: nomeUnidade(u) }))} /></div>
+          </div>
           {tipo === "SAIDA_CLIENTE" && (
             <label className="text-sm">Finalidade
               <select className="campo mt-1" value={finalidade} onChange={(e) => setFinalidade(e.target.value)}>
