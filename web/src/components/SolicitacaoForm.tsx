@@ -6,8 +6,8 @@ import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
 import type { Associado, ItemForm, Local, Produto } from "@/lib/types";
 
 // Técnico: o pedido é para o estoque dele e sai do estoque base dele (fixo). Os demais escolhem de onde e para onde.
-export function SolicitacaoForm({ produtos, associados, locais, tecnicoBase }: {
-  produtos: Produto[]; associados: Associado[]; locais: Local[]; tecnicoBase: { nome: string } | null | undefined;
+export function SolicitacaoForm({ produtos, associados, locais = [], tecnicoBase }: {
+  produtos: Produto[]; associados: Associado[]; locais?: Local[]; tecnicoBase: { nome: string } | null | undefined;
 }) {
   const ehTecnico = tecnicoBase !== undefined;
   const [origem, setOrigem] = useState<number | "">("");
