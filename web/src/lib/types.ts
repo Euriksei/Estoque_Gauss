@@ -18,7 +18,8 @@ export type ItemForm = {
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";
   sentido?: "mais" | "menos"; // só no ajuste de inventário
-  auto?: boolean; // sugerido como chicote do módulo
+  chicote?: boolean; // com o chicote do módulo (padrão: sim)
+  chicoteQtd?: number; // quantidade de chicotes, se editada
 };
 
 export const TIPOS: Record<string, string> = {

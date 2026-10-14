@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { Busca } from "@/components/Busca";
 import { nomeUnidade, type Associado, type ItemForm, type Produto, type Unidade } from "@/lib/types";
 
@@ -12,66 +11,26 @@ type Props = {
   // "reservado": usar item já reservado (saída/ajuste); "reservar": reservar no destino (transferência)
   reserva?: "reservado" | "reservar" | "nenhuma";
   permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
-  // Chicote que acompanha o módulo: "sempre" (entrada: caixa marcada por padrão), "opcional" (saída: caixa
-  // "Enviar chicote junto", marcada por padrão) ou "nenhum".
-  chicote?: "sempre" | "opcional" | "nenhum";
+  // "sim": cada módulo que tem chicote ganha a caixa "Com chicote" (marcada por padrão), por linha.
+  chicote?: "sim" | "nenhum";
 };
 
 export const itemVazio = (): ItemForm => ({ produto_id: "", quantidade: 1 });
 
 export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
-  const [junto, setJunto] = useState(true);
-  const sugerir = chicote !== "nenhum" && junto;
   const nomeUn = (u: Unidade) => nomeUnidade(u);
+  const nomeProd = new Map(produtos.map((p) => [p.id, p.nome]));
 
   function mudar(i: number, parte: Partial<ItemForm>) {
     onChange(itens.map((it, k) => (k === i ? { ...it, ...parte } : it)));
   }
 
-  // Ao escolher um item, sugere os associados (ex.: módulo Galileo -> chicote Galileo); tudo editável.
-  function escolher(i: number, produtoId: number | "") {
-    const novos = itens.map((it, k) => (k === i ? { ...it, produto_id: produtoId } : it));
-    if (produtoId !== "" && sugerir) {
-      const qtd = novos[i].quantidade || 1;
-      for (const a of associados.filter((x) => x.produto_id === produtoId)) {
-        if (!novos.some((it) => it.produto_id === a.associado_id)) {
-          novos.push({ ...itemVazio(), produto_id: a.associado_id, quantidade: a.quantidade * qtd, auto: true });
-        }
-      }
-    }
-    onChange(novos);
-  }
-
-  // Marcar a caixa acrescenta os chicotes dos módulos já escolhidos; desmarcar tira os que foram sugeridos.
-  function alternar(marcado: boolean) {
-    setJunto(marcado);
-    if (!marcado) return onChange(itens.filter((it) => !it.auto));
-    const novos = [...itens];
-    for (const it of itens) {
-      if (it.produto_id === "") continue;
-      for (const a of associados.filter((x) => x.produto_id === it.produto_id)) {
-        if (!novos.some((n) => n.produto_id === a.associado_id)) {
-          novos.push({ ...itemVazio(), produto_id: a.associado_id, quantidade: a.quantidade * (it.quantidade || 1), auto: true });
-        }
-      }
-    }
-    onChange(novos);
-  }
-
   return (
     <div className="space-y-2">
-      {chicote !== "nenhum" && (
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={junto} onChange={(e) => alternar(e.target.checked)} />
-          {chicote === "sempre"
-            ? "Dar entrada no chicote junto com o módulo (desmarque para entrar só o módulo)"
-            : "Enviar chicote junto com o módulo (desmarque para enviar só o módulo)"}
-        </label>
-      )}
       {itens.map((it, i) => (
         <div key={i} className="grid grid-cols-12 items-end gap-2">
           <div className="col-span-12 text-xs sm:col-span-5">{i === 0 && <span className="block">Item</span>}
-            <Busca required value={it.produto_id} onChange={(v) => escolher(i, v)} placeholder="Digite para buscar o item"
+            <Busca required value={it.produto_id} onChange={(v) => mudar(i, { produto_id: v, chicote: true, chicoteQtd: undefined })} placeholder="Digite para buscar o item"
               opcoes={produtos.map((p) => ({ value: p.id, label: p.nome }))} />
           </div>
           {permiteNegativo && (
@@ -94,9 +53,24 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
                 onChange={(v) => mudar(i, reserva === "reservar" ? { reservar_para_unidade_id: v } : { reservado_unidade_id: v })} />
             </div>
           )}
-          <button type="button" className="btn-sec col-span-2 sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
-            Tirar da lista
+          <button type="button" className="btn-sec col-span-2 whitespace-nowrap sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
+            Tirar
           </button>
+          {chicote === "sim" && it.produto_id !== "" && associados.some((a) => a.produto_id === it.produto_id) && (
+            <div className="col-span-12 flex flex-wrap items-center gap-2 pl-1 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={it.chicote !== false} onChange={(e) => mudar(i, { chicote: e.target.checked, chicoteQtd: undefined })} />
+                Com chicote ({associados.filter((a) => a.produto_id === it.produto_id).map((a) => nomeProd.get(a.associado_id)).join(", ")})
+              </label>
+              {it.chicote !== false && (
+                <label className="flex items-center gap-1 text-xs text-slate-600">quantidade
+                  <input type="number" min={1} step={1} className="campo w-20" value={qtdChicote(it, associados)}
+                    onKeyDown={(e) => { if (["-", "+", "e", "E", ".", ","].includes(e.key)) e.preventDefault(); }}
+                    onChange={(e) => { const n = Math.floor(Number(e.target.value)); mudar(i, { chicoteQtd: n > 0 ? n : 0 }); }} />
+                </label>
+              )}
+            </div>
+          )}
         </div>
       ))}
       <button type="button" className="btn-sec" onClick={() => onChange([...itens, itemVazio()])}>+ Adicionar item</button>
@@ -104,12 +78,29 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
   );
 }
 
-// Converte o formulário no formato que as funções do banco esperam.
-export function itensParaRpc(itens: ItemForm[]) {
-  return itens.map((i) => ({
+// Quantidade de chicotes da linha: a do módulo vezes a do par, a menos que tenha sido editada.
+const qtdChicote = (it: ItemForm, associados: Associado[]) =>
+  it.chicoteQtd ?? (associados.find((a) => a.produto_id === it.produto_id)?.quantidade ?? 1) * (it.quantidade || 0);
+
+// Converte o formulário no formato que as funções do banco esperam. Com `associados`, cada linha marcada
+// "com chicote" gera também a linha do chicote (somando quando o mesmo chicote aparece em várias linhas).
+export function itensParaRpc(itens: ItemForm[], associados: Associado[] = []) {
+  const linhas = itens.map((i) => ({
     produto_id: i.produto_id,
     quantidade: i.sentido === "menos" ? -Math.abs(i.quantidade) : Math.abs(i.quantidade),
     reservado_unidade_id: i.reservado_unidade_id || null,
     reservar_para_unidade_id: i.reservar_para_unidade_id || null,
   }));
+  for (const i of itens) {
+    if (i.produto_id === "" || i.chicote === false) continue;
+    for (const a of associados.filter((x) => x.produto_id === i.produto_id)) {
+      const qtd = qtdChicote(i, associados);
+      if (qtd <= 0) continue;
+      const sinal = i.sentido === "menos" ? -1 : 1;
+      const igual = linhas.find((l) => l.produto_id === a.associado_id && l.reservado_unidade_id === (i.reservado_unidade_id || null) && l.reservar_para_unidade_id === (i.reservar_para_unidade_id || null));
+      if (igual) igual.quantidade += sinal * qtd;
+      else linhas.push({ produto_id: a.associado_id, quantidade: sinal * qtd, reservado_unidade_id: i.reservado_unidade_id || null, reservar_para_unidade_id: i.reservar_para_unidade_id || null });
+    }
+  }
+  return linhas;
 }

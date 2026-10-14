@@ -41,7 +41,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
     if (tipo === "SAIDA_TECNICO") {
       const destino = estoquesTecnico.find((e) => e.tecnico.id === tecnicoId)?.local_id;
       const r = await supabaseBrowser().rpc("criar_transferencia", {
-        p: { origem_id: localId, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens) },
+        p: { origem_id: localId, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens, associados) },
       });
       setEnviando(false);
       if (r.error) return setMsg({ ok: false, texto: r.error.message });
@@ -53,7 +53,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
     const { error } = await supabaseBrowser().rpc("registrar_movimentacao", {
       p: {
         tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
-        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens),
+        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens, tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE" ? associados : []),
         modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null,
       },
     });
@@ -173,7 +173,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
       )}
 
       <ItensEditor key={tipo} itens={itens} onChange={setItens} produtos={produtos} associados={associados}
-        chicote={tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" ? "sempre" : tipo === "SAIDA_CLIENTE" || paraTecnico ? "opcional" : "nenhum"}
+        chicote={tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE" || paraTecnico ? "sim" : "nenhum"}
         unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; escolha Aumentar ou Reduzir em cada item)" : "Observação"}

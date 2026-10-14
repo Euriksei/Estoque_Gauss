@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { ItensEditor, itemVazio } from "@/components/ItensEditor";
+import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
 import type { Associado, ItemForm, Produto } from "@/lib/types";
 
 export function SolicitacaoForm({ produtos, associados }: { produtos: Produto[]; associados: Associado[] }) {
@@ -15,7 +15,7 @@ export function SolicitacaoForm({ produtos, associados }: { produtos: Produto[];
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabaseBrowser().rpc("criar_solicitacao", {
-      p: { chamado_url: chamado, observacao: obs, itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade })) },
+      p: { chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens, associados).map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade })) },
     });
     if (error) return setMsg({ ok: false, texto: error.message });
     setMsg({ ok: true, texto: "Pedido enviado." });
@@ -26,7 +26,7 @@ export function SolicitacaoForm({ produtos, associados }: { produtos: Produto[];
   return (
     <form onSubmit={enviar} className="card space-y-3">
       <h2 className="font-medium">Pedir material</h2>
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={[]} chicote="opcional" />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={[]} chicote="sim" />
       <label className="block text-sm">Link do chamado (opcional)
         <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} />
       </label>

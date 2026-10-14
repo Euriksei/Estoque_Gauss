@@ -23,7 +23,7 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
     e.preventDefault();
     setMsg(null);
     const { error } = await supabaseBrowser().rpc("criar_transferencia", {
-      p: { origem_id: origem, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens) },
+      p: { origem_id: origem, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens, associados) },
     });
     if (error) return setMsg({ ok: false, texto: error.message });
     setMsg({ ok: true, texto: "Transferência enviada. O saldo saiu do seu estoque e entra no destino quando ele confirmar o recebimento." });
@@ -65,7 +65,7 @@ export function TransferenciaForm({ origens, destinos, produtos, unidades, assoc
           <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
         </label>
       </div>
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="opcional" />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="sim" />
       <label className="block text-sm">Observação
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
       </label>
