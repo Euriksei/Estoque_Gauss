@@ -12,7 +12,7 @@ Next.js 14 + Supabase. O app lê pelas tabelas e views (protegidas por perfil no
 
 ## Como rodar
 1. Crie um projeto no Supabase e aplique, nesta ordem, `supabase/migrations/0001_schema.sql`, `0002_seguranca_e_funcoes.sql` e `supabase/seed.sql`.
-2. Copie `web/.env.example` para `web/.env.local` e preencha a URL e a chave pública (anon) do projeto.
+2. Copie `web/.env.example` para `web/.env.local` e preencha a URL e a chave pública (publishable) do projeto.
 3. `cd web && npm install && npm run dev`.
 4. Crie sua conta pela tela de login ("Primeiro acesso") e libere-se como administrador no SQL Editor do Supabase:
    `update usuario set perfil = 'admin', ativo = true where email = 'seu@email';`
