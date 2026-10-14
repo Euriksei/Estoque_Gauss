@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getUsuario, getCatalogo, getLocais, nomeUnidade } from "@/lib/dados";
 
@@ -7,6 +8,8 @@ type Linha = { local_id: number; produto_id: number; reservado_unidade_id: numbe
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   const sb = supabaseServer();
   const [{ data }, { produtos, unidades }, { todos }] = await Promise.all([
     sb.from("saldo").select("*"),

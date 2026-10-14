@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getLocais, getUsuario } from "@/lib/dados";
 import { Acao } from "@/components/Acao";
@@ -15,6 +16,8 @@ type Mov = {
 
 export default async function Historico() {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   const sb = supabaseServer();
   const [{ todos }, { data }] = await Promise.all([
     getLocais(usuario),

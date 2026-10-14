@@ -22,7 +22,9 @@ export default async function Transferencias() {
       .select("id,status,data,modo_envio,codigo_rastreio,prazo_chegada,local_origem_id,local_destino_id,observacao,recebido_em, movimentacao_item(quantidade,reservar_para_unidade_id,reservado_unidade_id, produto(nome))")
       .eq("tipo", "TRANSFERENCIA").order("id", { ascending: false }).limit(100),
   ]);
-  const movs = (data ?? []) as unknown as Mov[];
+  const meusLocais = new Set(operaveis.map((l) => l.id));
+  // Técnico vê só o que foi enviado para o estoque dele.
+  const movs = ((data ?? []) as unknown as Mov[]).filter((m) => usuario.perfil !== "tecnico" || meusLocais.has(m.local_destino_id));
   const nome = new Map(todos.map((l) => [l.id, l.nome]));
   const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
   const meus = new Set(operaveis.map((l) => l.id));
@@ -61,8 +63,8 @@ export default async function Transferencias() {
             {m.observacao && <p className="mt-1 text-slate-600">{m.observacao}</p>}
             {m.status === "em_transito" && (
               <div className="mt-2 flex gap-2">
-                {podeConfirmar(m) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" />}
-                {meus.has(m.local_origem_id) && <Acao fn="cancelar_transferencia" args={{ p_id: m.id }} texto="Cancelar envio" secundario pedirMotivo />}
+                {podeConfirmar(m) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" confirmar={`Confirma que recebeu:\n${m.movimentacao_item.map((i) => `${i.quantidade}× ${i.produto?.nome}`).join("\n")}`} />}
+                {usuario.perfil !== "tecnico" && meus.has(m.local_origem_id) && <Acao fn="cancelar_transferencia" args={{ p_id: m.id }} texto="Cancelar envio" secundario pedirMotivo />}
               </div>
             )}
           </div>

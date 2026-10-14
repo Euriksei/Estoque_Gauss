@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
 import { DedicadoAcoes } from "@/components/DedicadoAcoes";
@@ -12,6 +13,8 @@ const SITUACAO = { em_local: "Guardado", em_transito: "Em trânsito", entregue: 
 
 export default async function Dedicados() {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   const sb = supabaseServer();
   const [{ todos, operaveis }, cat, pos, hist, tecnicos] = await Promise.all([
     getLocais(usuario), getCatalogo(),

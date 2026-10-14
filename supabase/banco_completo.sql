@@ -19,7 +19,7 @@ create type tipo_movimento   as enum ('ENTRADA_COMPRA', 'DEVOLUCAO_CLIENTE', 'SA
 create type status_movimento as enum ('registrado', 'em_transito', 'recebido', 'cancelado');
 create type finalidade       as enum ('mobilizacao', 'manutencao');
 create type modo_envio       as enum ('correios', 'sedex', 'retirada', 'tecnico', 'transportadora');
-create type status_solicitacao as enum ('aberta', 'atendida', 'cancelada');
+create type status_solicitacao as enum ('aberta', 'em_producao', 'atendida', 'cancelada');
 
 create table usuario (
   id         uuid primary key references auth.users(id) on delete cascade,
@@ -148,6 +148,7 @@ create table solicitacao (
   chamado_url      text,
   observacao       text,
   movimentacao_id  bigint references movimentacao(id),     -- transferência que atendeu o pedido
+  prazo_producao   timestamptz,                            -- preenchido ao aceitar: 1 dia para finalizar
   criado_em        timestamptz not null default now()
 );
 
@@ -640,7 +641,10 @@ language plpgsql security definer set search_path = public as $$
 declare s solicitacao;
 begin
   select * into s from solicitacao where id = p_id for update;
-  if not found or s.status <> 'aberta' then raise exception 'Solicitação não está aberta'; end if;
+  if not found or s.status::text not in ('aberta','em_producao') then raise exception 'Solicitação não está em andamento'; end if;
+  if s.status::text = 'em_producao' and fn_perfil()::text not in ('admin','operador') then
+    raise exception 'Depois de aceita, só administrador e operador cancelam' using errcode = '42501';
+  end if;
   if s.tecnico_id <> auth.uid() and fn_perfil() not in ('admin','operador') then
     raise exception 'Sem permissão' using errcode = '42501';
   end if;
@@ -1166,7 +1170,7 @@ begin
   end if;
   select * into s from solicitacao where id = p_id for update;
   if not found then raise exception 'Solicitação não encontrada'; end if;
-  if s.status <> 'aberta' then raise exception 'Solicitação já encerrada'; end if;
+  if s.status::text not in ('aberta','em_producao') then raise exception 'Solicitação já encerrada'; end if;
   if s.origem_id is null or s.destino_id is null then raise exception 'Pedido sem origem ou destino'; end if;
   select jsonb_agg(jsonb_build_object('produto_id', produto_id, 'quantidade', quantidade,
                                       'reservar_para_unidade_id', reservar_para_unidade_id))
@@ -1175,6 +1179,22 @@ begin
   update solicitacao set status = 'atendida', movimentacao_id = v_mov where id = p_id;
   return v_mov;
 end $$;
+
+-- Aceitar = o operador/administrador assume o pedido: vai para "em produção" com 1 dia de prazo para finalizar.
+create or replace function public.aceitar_solicitacao(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+declare s solicitacao;
+begin
+  if fn_perfil()::text not in ('admin','operador') then
+    raise exception 'Só administrador e operador aceitam solicitações' using errcode = '42501';
+  end if;
+  select * into s from solicitacao where id = p_id for update;
+  if not found then raise exception 'Solicitação não encontrada'; end if;
+  if s.status::text <> 'aberta' then raise exception 'Só dá para aceitar solicitação aberta'; end if;
+  update solicitacao set status = 'em_producao', prazo_producao = now() + interval '1 day' where id = p_id;
+end $$;
+revoke execute on function public.aceitar_solicitacao(bigint) from public, anon;
+grant execute on function public.aceitar_solicitacao(bigint) to authenticated;
 
 -- ================================================================ dados iniciais (seed)
 -- Carga inicial: locais, categorias, fornecedores e os 90 itens do catálogo (modelagem/catalogo-itens.csv).

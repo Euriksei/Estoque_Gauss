@@ -32,11 +32,11 @@ export default function Login() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-marca-600 via-marinho-900 to-marinho-950 px-4">
+    <main className="flex min-h-screen border-t-4 border-marca-600 items-center justify-center bg-gradient-to-b from-marinho-900 to-marinho-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Gauss Fleet" className="mb-3 h-16 w-16 rounded-2xl shadow-lg" />
+          <img src="/logo.png" alt="Gauss Fleet" className="mb-3 h-20 w-20 rounded-2xl ring-2 ring-white shadow-lg" />
           <h1 className="text-2xl font-bold tracking-wide">Estoque Gauss</h1>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-300">Gauss Fleet</p>
         </div>

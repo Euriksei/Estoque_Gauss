@@ -1,13 +1,13 @@
 const H=require('./h');const {L,sql,busca,check,msgForm}=H;
 const saldo=(local,prod,res)=>sql(`select coalesce(sum(delta),0) from efeito_estoque e join local l on l.id=e.local_id join produto p on p.id=e.produto_id where l.nome like '${local}' and p.nome='${prod}' and ${res?`e.reservado_unidade_id is not null`:`e.reservado_unidade_id is null`}`);
 (async()=>{const b=await L.launch();
-// 1) técnico entrega dedicado ao cliente
-let p=await L.novo(b);await L.login(p,'tec@x.com');await L.nav(p,'/dedicados');
+// 1) administrador entrega o dedicado ao cliente, levado pelo técnico
+let p=await L.novo(b);await L.login(p,'admin@x.com');await L.nav(p,'/dedicados');
 await p.getByRole('button',{name:'Enviar ao cliente'}).first().click();
 let f=p.locator('form').first();
-check(!(await f.innerText()).includes('Modo de envio'),'1a técnico não escolhe modo de envio (é ele que leva)');
+await f.getByLabel('Modo de envio').selectOption('tecnico');await f.getByLabel('Técnico que leva o material').selectOption({index:1});
 await f.getByRole('button',{name:'Registrar saída'}).click();await p.waitForTimeout(2000);
-check(sql("select count(*) from movimentacao m join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE' and t.nome='Joao CLT' and m.modo_envio='tecnico'")==='1','1b baixa do técnico registrada com ele como técnico');
+check(sql("select count(*) from movimentacao m join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE' and t.nome='Joao CLT' and m.modo_envio='tecnico'")==='1','1b baixa registrada com o técnico que leva');
 const dt=await p.locator('body').innerText();check(dt.includes('Entregue ao cliente'),'1c Dedicados mostra "Entregue ao cliente"');
 await p.context().close();
 // 2) entrada dedicada por compra e ajustes
@@ -95,7 +95,7 @@ p=await L.novo(b);await L.login(p,'cons@x.com');await L.nav(p,'/solicitacoes');
 check(await p.getByRole('button',{name:'Nova solicitação'}).count()===0,'7f Consulta não vê "Nova solicitação"');await p.context().close();
 // operador SBC atende o pedido do agendamento (origem SBC)
 p=await L.novo(b);await L.login(p,'sbc@x.com');await L.nav(p,'/solicitacoes');
-check(await p.getByRole('button',{name:/Atender/}).count()===1,'7g Operador SBC vê Atender no pedido que sai do SBC');
+check(await p.getByRole('button',{name:/Aceitar/}).count()===1,'7g Operador SBC vê Aceitar no pedido que sai do SBC');
 // 8) login com senha errada
 const q=await L.novo(b);await q.goto(L.BASE+'/login');await q.fill('input[type=email]','admin@x.com');await q.fill('input[type=password]','errada1');await q.click('button.btn');await q.waitForTimeout(1500);
 check((await q.locator('body').innerText()).includes('incorretos'),'8a senha errada mostra mensagem');

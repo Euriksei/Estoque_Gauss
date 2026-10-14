@@ -22,7 +22,7 @@ const antes=await secTxt(p,'Em andamento');check(antes.includes('FMC 650')&&ante
 await p.getByRole('button',{name:'Confirmar recebimento'}).click();await p.waitForTimeout(1500);
 check(sql("select coalesce(sum(delta),0) from efeito_estoque e join local l on l.id=e.local_id where l.nome like '%Joao%'")==='10','2c depois de confirmar o saldo do técnico = 10 (5 FMC650 + 5 chicotes)');
 const dep=await secTxt(p,'Concluídas');check(dep.includes('Recebido'),'2d transferência foi para Concluídas');
-await L.nav(p,'/');check((await p.locator('h1').innerText())==='Meu estoque'&&(await p.locator('tbody tr').count())===2,'2e "Meu estoque" mostra 2 linhas');
+await L.nav(p,'/');check(p.url().endsWith('/transferencias'),'2e técnico não acessa o Estoque (volta para Transferências)');
 await p.context().close();
 // 3) envio ao Ze PJ (sem login); Op SBC não confirma, Op NL confirma
 p=await L.novo(b);await L.login(p,'admin@x.com');await L.nav(p,'/movimentar');
@@ -72,8 +72,11 @@ await L.nav(p,'/solicitacoes');const pend=await secTxt(p,'Pendentes');check(pend
 check(await p.getByRole('button',{name:/Atender/}).count()===0,'5e técnico não vê Atender');await p.context().close();
 // 6) SBC não atende; NL atende
 p=await L.novo(b);await L.login(p,'sbc@x.com');await L.nav(p,'/solicitacoes');
-check((await secTxt(p,'Pendentes')).includes('Pendentes (1)')&&await p.getByRole('button',{name:/Atender/}).count()===0,'6a Operador SBC vê o pedido, mas sem Atender (origem é NL)');await p.context().close();
+check((await secTxt(p,'Pendentes')).includes('Pendentes (1)')&&await p.getByRole('button',{name:/Atender|Aceitar/}).count()===0,'6a Operador SBC vê o pedido, mas sem Aceitar/Atender (origem é NL)');await p.context().close();
 p=await L.novo(b);await L.login(p,'nl@x.com');await L.nav(p,'/solicitacoes');
+check(await p.getByRole('button',{name:/Atender/}).count()===0,'6x antes de aceitar não há Atender');
+await p.getByRole('button',{name:/Aceitar/}).click();await p.waitForTimeout(2000);
+const prod=await secTxt(p,'Em produção');check(prod.includes('Em produção (1)')&&prod.includes('prazo até'),'6y aceitar leva para Em produção com prazo: '+prod.slice(0,120).replace(/\n/g,' '));
 await p.getByRole('button',{name:/Atender/}).click();await p.waitForTimeout(2000);
 check(sql("select count(*) from movimentacao where tipo='TRANSFERENCIA' and status='em_transito'")==='1','6b NL atendeu: transferência criada em trânsito');
 const conc=await secTxt(p,'Concluídas');check(conc.includes('Atendida'),'6c solicitação foi para Concluídas como Atendida');
@@ -82,9 +85,6 @@ await p.context().close();
 // 7) técnico confirma o dedicado; vê em Dedicados
 p=await L.novo(b);await L.login(p,'tec@x.com');await L.nav(p,'/transferencias');
 await p.getByRole('button',{name:'Confirmar recebimento'}).click();await p.waitForTimeout(1500);
-await L.nav(p,'/dedicados');const ded=await p.locator('body').innerText();
-check(ded.includes('CSN - Mineração')&&ded.includes('Guardado')&&ded.includes('Enviar ao cliente'),'7a técnico vê o dedicado em Dedicados com ação "Enviar ao cliente"');
-check(!ded.includes('Transferir'),'7b técnico não tem "Transferir" em Dedicados');
-await p.screenshot({path:'d_dedicados_tec.png'});
+await L.nav(p,'/dedicados');check(p.url().endsWith('/transferencias'),'7a técnico não acessa Dedicados');
 console.log('erros console:',p.errs.filter(e=>!e.includes('404')));
 await b.close()})().catch(e=>{console.error(e);process.exit(1)});

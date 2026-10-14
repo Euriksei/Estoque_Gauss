@@ -7,12 +7,12 @@ import { SairBotao } from "@/components/SairBotao";
 import { Menu } from "@/components/Menu";
 
 const MENU: { href: string; nome: string; perfis: Perfil[] }[] = [
-  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/movimentar", nome: "Registrar", perfis: ["admin", "operador", "tecnico"] },
+  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/movimentar", nome: "Registrar", perfis: ["admin", "operador"] },
   { href: "/transferencias", nome: "Transferências", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
   { href: "/solicitacoes", nome: "Solicitações", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
+  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "consulta", "agendamento"] },
   { href: "/cadastros", nome: "Cadastros", perfis: ["admin"] },
   { href: "/usuarios", nome: "Usuários", perfis: ["admin"] },
 ];

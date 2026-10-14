@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
 import { MovimentarForm } from "@/components/MovimentarForm";
@@ -6,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Movimentar() {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   if (usuario.perfil === "consulta" || usuario.perfil === "agendamento") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
   const sb = supabaseServer();
   const [{ operaveis, todos }, cat, { data: forn }, tecnicos] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome"), getTecnicos()]);

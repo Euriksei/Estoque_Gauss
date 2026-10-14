@@ -156,3 +156,22 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a'
 select estornar_movimentacao(1,'erro de digitação');
 \set ON_ERROR_STOP on
 select 'auditoria linhas=' || (select count(*) from auditoria);
+
+\echo '--- 9. Aceitar solicitação: aberta -> em_producao (prazo 1 dia); técnico não aceita; só operador/admin cancelam depois'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select criar_solicitacao(jsonb_build_object('itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) as sol5 from ids \gset
+\set ON_ERROR_STOP off
+\echo '--- técnico tenta aceitar a própria solicitação (deve falhar)'
+select aceitar_solicitacao(:sol5);
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select aceitar_solicitacao(:sol5);
+select 'status=' || status::text || ' prazo≈1 dia: ' || (prazo_producao - now() between interval '23 hours' and interval '25 hours') from solicitacao where id=:sol5;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+\set ON_ERROR_STOP off
+\echo '--- técnico tenta cancelar solicitação já em produção (deve falhar)'
+select cancelar_solicitacao(:sol5);
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select atender_solicitacao(:sol5, '{"modo_envio":"tecnico"}'::jsonb) is not null;
+select 'status final=' || status::text from solicitacao where id=:sol5;
