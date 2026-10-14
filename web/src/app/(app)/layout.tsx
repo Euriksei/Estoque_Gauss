@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUsuario } from "@/lib/dados";
+import { supabaseServer } from "@/lib/supabase/server";
 import { PERFIS, type Perfil } from "@/lib/types";
 import { SairBotao } from "@/components/SairBotao";
 
@@ -16,8 +17,22 @@ const MENU: { href: string; nome: string; perfis: Perfil[] }[] = [
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const { data: auth } = await supabaseServer().auth.getUser();
+  if (!auth.user) redirect("/login");
   const usuario = await getUsuario();
-  if (!usuario) redirect("/login");
+  if (!usuario) {
+    // Logado, mas sem registro na tabela de usuários: avisa em vez de voltar para o login sem explicar.
+    return (
+      <main className="mx-auto mt-24 max-w-md px-4 text-center">
+        <h1 className="mb-2 text-lg font-semibold">Conta sem cadastro de usuário</h1>
+        <p className="mb-4 text-sm text-slate-600">
+          Você entrou como {auth.user.email}, mas essa conta não tem registro na tabela de usuários.
+          Peça a um administrador para criá-lo, ou rode o comando de liberação no banco.
+        </p>
+        <SairBotao />
+      </main>
+    );
+  }
   if (!usuario.ativo) {
     return (
       <main className="mx-auto mt-24 max-w-md px-4 text-center">
