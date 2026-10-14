@@ -32,13 +32,13 @@ export default async function Cadastros() {
       <section className="card space-y-3">
         <h2 className="font-medium">Técnicos</h2>
         <p className="text-sm text-slate-600">Cada técnico (CLT ou PJ) tem o próprio estoque. Quem leva material ao cliente é escolhido aqui na saída. Se o técnico também usa o sistema, ligue-o ao login dele para ele ver e movimentar o próprio estoque.</p>
-        <NovoTecnico usuarios={usuarios} />
+        <NovoTecnico usuarios={usuarios} bases={todos.filter((l) => l.tipo === "estoque")} />
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead><tr><th className="th">Técnico</th><th className="th">Vínculo</th><th className="th">Login</th><th className="th">Situação</th><th className="th">Estoque</th></tr></thead>
+            <thead><tr><th className="th">Técnico</th><th className="th">Vínculo</th><th className="th">Login</th><th className="th">Situação</th><th className="th">Estoque base</th><th className="th">Estoque</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {tecnicos.map((t) => <TecnicoLinha key={t.id} t={t} usuarios={usuarios} estoque={todos.find((l) => l.tecnico_id === t.id)?.nome ?? null} />)}
-              {tecnicos.length === 0 && <tr><td className="td text-slate-500" colSpan={5}>Nenhum técnico cadastrado.</td></tr>}
+              {tecnicos.map((t) => <TecnicoLinha key={t.id} t={t} usuarios={usuarios} estoque={todos.find((l) => l.tecnico_id === t.id)?.nome ?? null} localId={todos.find((l) => l.tecnico_id === t.id)?.id ?? null} baseId={todos.find((l) => l.tecnico_id === t.id)?.base_id ?? null} bases={todos.filter((l) => l.tipo === "estoque")} />)}
+              {tecnicos.length === 0 && <tr><td className="td text-slate-500" colSpan={6}>Nenhum técnico cadastrado.</td></tr>}
             </tbody>
           </table>
         </div>

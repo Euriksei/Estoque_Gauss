@@ -83,7 +83,8 @@ export function EstoqueMinimo({ id, valor }: { id: number; valor: number }) {
   );
 }
 
-export function NovoTecnico({ usuarios }: { usuarios: { id: string; nome: string; email: string }[] }) {
+export function NovoTecnico({ usuarios, bases }: { usuarios: { id: string; nome: string; email: string }[]; bases: { id: number; nome: string }[] }) {
+  const [baseId, setBaseId] = useState<number | "">("");
   const [nome, setNome] = useState("");
   const [vinculo, setVinculo] = useState<Vinculo>("clt");
   const [usuarioId, setUsuarioId] = useState("");
@@ -96,7 +97,7 @@ export function NovoTecnico({ usuarios }: { usuarios: { id: string; nome: string
         const { data, error } = await sb.from("tecnico").insert({ nome, vinculo, usuario_id: usuarioId || null }).select("id").single();
         if (error || !data) return { error: error ?? { message: "Não foi possível cadastrar" } };
         // Cada técnico já nasce com o próprio estoque.
-        return sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[vinculo]} - ${nome}`, tipo: "tecnico", tecnico_id: data.id });
+        return sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[vinculo]} - ${nome}`, tipo: "tecnico", tecnico_id: data.id, base_id: baseId || null });
       });
       setNome(""); setUsuarioId("");
     }}>
@@ -104,6 +105,11 @@ export function NovoTecnico({ usuarios }: { usuarios: { id: string; nome: string
       <label className="text-sm">Vínculo
         <select className="campo mt-1" value={vinculo} onChange={(e) => setVinculo(e.target.value as Vinculo)}>
           <option value="clt">CLT</option><option value="pj">PJ</option>
+        </select></label>
+      <label className="text-sm">Estoque base
+        <select className="campo mt-1" value={baseId} onChange={(e) => setBaseId(Number(e.target.value))} required>
+          <option value="">Selecione</option>
+          {bases.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
         </select></label>
       <label className="text-sm">Acessa o sistema como (opcional)
         <select className="campo mt-1" value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)}>
@@ -115,7 +121,7 @@ export function NovoTecnico({ usuarios }: { usuarios: { id: string; nome: string
   );
 }
 
-export function TecnicoLinha({ t, usuarios, estoque }: { t: Tecnico; usuarios: { id: string; nome: string; email: string }[]; estoque: string | null }) {
+export function TecnicoLinha({ t, usuarios, estoque, localId, baseId, bases }: { t: Tecnico; usuarios: { id: string; nome: string; email: string }[]; estoque: string | null; localId: number | null; baseId: number | null; bases: { id: number; nome: string }[] }) {
   const { erro, salvar } = useSalvar();
   const sb = supabaseBrowser();
   const atualizar = (parte: Partial<Tecnico>) => salvar(() => sb.from("tecnico").update(parte).eq("id", t.id));
@@ -135,6 +141,14 @@ export function TecnicoLinha({ t, usuarios, estoque }: { t: Tecnico; usuarios: {
       </td>
       <td className="td">
         <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={t.ativo} onChange={(e) => atualizar({ ativo: e.target.checked })} /> Ativo</label>
+      </td>
+      <td className="td">
+        {localId ? (
+          <select className="campo w-auto" value={baseId ?? ""} onChange={(e) => salvar(() => sb.from("local").update({ base_id: e.target.value ? Number(e.target.value) : null }).eq("id", localId))}>
+            <option value="">Defina o estoque base</option>
+            {bases.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+          </select>
+        ) : "-"}
       </td>
       <td className="td text-sm">
         {estoque ?? <button className="btn-sec" onClick={() => salvar(() => sb.from("local").insert({ nome: `Estoque técnico ${VINCULOS[t.vinculo]} - ${t.nome}`, tipo: "tecnico", tecnico_id: t.id }))}>Criar estoque</button>}

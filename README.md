@@ -45,7 +45,7 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 ### Para o administrador
 
 - **Usuários**: quem se cadastra entra inativo. Escolha o perfil, marque "Ativo" e, para operador, marque os estoques que ele pode movimentar. Para os técnicos, veja Cadastros.
-- **Cadastros**: adicione clientes e unidades, **técnicos** (CLT ou PJ, com ou sem login, cada um com o seu estoque), itens e ajuste o estoque mínimo de cada item. Para um técnico acessar o sistema, ele cria a conta, você marca o perfil "Técnico" em Usuários e liga o login dele ao cadastro dele em Cadastros, Técnicos.
+- **Cadastros**: adicione clientes e unidades, **técnicos** (CLT ou PJ, com ou sem login, cada um com o seu estoque), itens e ajuste o estoque mínimo de cada item. Cada técnico precisa de um **estoque base** (SBC ou Nova Lima): é de lá que saem os pedidos dele. Defina em Cadastros, Técnicos (os técnicos já cadastrados precisam ter o base escolhido uma vez). Para um técnico acessar o sistema, ele cria a conta, você marca o perfil "Técnico" em Usuários e liga o login dele ao cadastro dele em Cadastros, Técnicos.
 - O **primeiro cadastro** do sistema vira administrador automaticamente.
 
 ## Estrutura do repositório
