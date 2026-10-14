@@ -4,12 +4,12 @@
 
 @layer base {
   body { @apply antialiased; }
-  :focus-visible { @apply outline-none ring-2 ring-marca-500/60 ring-offset-1; }
+  :focus-visible { outline: 2px solid rgba(242, 58, 51, 0.6); outline-offset: 1px; }
   ::selection { @apply bg-marca-100; }
 }
 
 @layer components {
-  .campo { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-marca-600 focus:outline-none focus:ring-2 focus:ring-marca-500/30 disabled:bg-slate-100; }
+  .campo { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-marca-600 focus:outline-none focus:ring-2 focus:ring-marca-100 disabled:bg-slate-100; }
   .btn { @apply inline-flex items-center justify-center rounded-lg bg-marca-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-marca-700 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50; }
   .btn-sec { @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm transition hover:border-marinho-700 hover:bg-slate-50 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50; }
   .th { @apply bg-slate-100 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600; }
