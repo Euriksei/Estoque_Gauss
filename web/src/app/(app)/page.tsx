@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 type Linha = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number };
 
-export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string } }) {
+export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {
   const usuario = (await getUsuario())!;
   const sb = supabaseServer();
   const [{ data }, { produtos, unidades }, { todos }] = await Promise.all([
@@ -17,6 +17,8 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
   const visiveis = todos.filter((l) => saldo.some((s) => s.local_id === l.id));
   const filtroLocal = searchParams.local ? Number(searchParams.local) : null;
   const q = (searchParams.q ?? "").toLowerCase();
+  const filtroCat = searchParams.categoria ? Number(searchParams.categoria) : null;
+  const categorias = [...new Map(produtos.filter((p) => p.categoria_id).map((p) => [p.categoria_id as number, p.categoria?.nome ?? ""])).entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   const grupoDe = (id: number) => { const l = todos.find((x) => x.id === id); return l?.tipo === "tecnico" ? `tec-${l.tecnico?.vinculo}` : "fixo"; };
 
   const nomeProduto = new Map(produtos.map((p) => [p.id, p]));
@@ -26,6 +28,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
   const linhas = saldo
     .filter((s) => (filtroLocal ? s.local_id === filtroLocal : true))
     .filter((s) => (searchParams.grupo ? grupoDe(s.local_id) === searchParams.grupo : true))
+    .filter((s) => (filtroCat ? nomeProduto.get(s.produto_id)?.categoria_id === filtroCat : true))
     .filter((s) => (q ? (nomeProduto.get(s.produto_id)?.nome ?? "").toLowerCase().includes(q) : true));
 
   // Alerta de estoque mínimo: soma do estoque livre dos locais fixos (não conta o carro do técnico nem dedicados).
@@ -66,6 +69,10 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
             <option value="tec-clt">Estoque técnico CLT</option>
           </select>
         )}
+        <select name="categoria" defaultValue={searchParams.categoria ?? ""} className="campo w-auto">
+          <option value="">Todas as categorias</option>
+          {categorias.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+        </select>
         <input name="q" defaultValue={searchParams.q ?? ""} placeholder="Buscar item" className="campo w-60" />
         <button className="btn-sec">Filtrar</button>
       </form>
@@ -73,18 +80,19 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
       <div className="card overflow-x-auto p-0">
         <table className="w-full">
           <thead className="border-b border-slate-200">
-            <tr><th className="th">Local</th><th className="th">Item</th><th className="th">Situação</th><th className="th text-right">Qtd.</th></tr>
+            <tr><th className="th">Local</th><th className="th">Categoria</th><th className="th">Item</th><th className="th">Livre ou dedicado</th><th className="th text-right">Qtd.</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {linhas.map((s, i) => (
               <tr key={i}>
                 <td className="td">{nomeLocal.get(s.local_id)}</td>
+                <td className="td">{nomeProduto.get(s.produto_id)?.categoria?.nome}</td>
                 <td className="td">{nomeProduto.get(s.produto_id)?.nome}</td>
                 <td className="td">{s.reservado_unidade_id ? `Dedicado: ${nomeUn.get(s.reservado_unidade_id)}` : "Livre"}</td>
                 <td className="td text-right font-medium">{s.quantidade}</td>
               </tr>
             ))}
-            {linhas.length === 0 && <tr><td className="td text-slate-500" colSpan={4}>Nenhum item em estoque.</td></tr>}
+            {linhas.length === 0 && <tr><td className="td text-slate-500" colSpan={5}>Nenhum item em estoque.</td></tr>}
           </tbody>
         </table>
       </div>

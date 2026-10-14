@@ -1,6 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
-import { EstoqueMinimo, NovaUnidade, NovoCliente, NovoProduto, NovoTecnico, TecnicoLinha } from "@/components/CadastroForms";
+import { EstoqueMinimo, NovaUnidade, NovoCliente, NovoProduto, NovoTecnico, ProdutosTabela, TecnicoLinha } from "@/components/CadastroForms";
 import { nomeUnidade } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -46,16 +46,7 @@ export default async function Cadastros() {
       <section className="card space-y-3">
         <h2 className="font-medium">Itens e estoque mínimo</h2>
         <NovoProduto categorias={k.data ?? []} fornecedores={f.data ?? []} />
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr><th className="th">Item</th><th className="th">Categoria</th><th className="th">Fabricante</th><th className="th">Estoque mínimo</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">
-              {cat.produtos.map((p) => (
-                <tr key={p.id}><td className="td">{p.nome}</td><td className="td">{p.categoria?.nome}</td><td className="td">{p.fabricante ?? "-"}</td><td className="td"><EstoqueMinimo id={p.id} valor={p.estoque_minimo} /></td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ProdutosTabela produtos={cat.produtos} />
       </section>
     </div>
   );

@@ -65,9 +65,41 @@ export function NovoProduto({ categorias, fornecedores }: { categorias: Opt[]; f
         <select className="campo mt-1" value={forn} onChange={(e) => setForn(Number(e.target.value))}>
           <option value="">-</option>{fornecedores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </select></label>
-      <label className="text-sm">Mínimo<input type="number" min={0} className="campo mt-1 w-24" value={min} onChange={(e) => setMin(Number(e.target.value))} /></label>
+      <label className="flex flex-col text-sm">Mínimo<input type="number" min={0} className="campo mt-1 w-24" value={min} onChange={(e) => setMin(Number(e.target.value))} /></label>
       <button className="btn">Adicionar</button>{erro && <span className="text-xs text-red-700">{erro}</span>}
     </form>
+  );
+}
+
+// Tabela de itens com busca e filtro por categoria.
+export function ProdutosTabela({ produtos }: { produtos: { id: number; nome: string; categoria_id: number | null; categoria?: { nome: string } | null; fabricante: string | null; estoque_minimo: number }[] }) {
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState<number | "">("");
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const categorias = [...new Map(produtos.filter((p) => p.categoria_id).map((p) => [p.categoria_id as number, p.categoria?.nome ?? ""])).entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+  const lista = produtos.filter((p) => (cat === "" || p.categoria_id === cat) && norm(p.nome).includes(norm(q)));
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <input className="campo w-60" placeholder="Buscar item" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="campo w-auto" value={cat} onChange={(e) => setCat(e.target.value ? Number(e.target.value) : "")}>
+          <option value="">Todas as categorias</option>
+          {categorias.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+        </select>
+        <span className="self-center text-xs text-slate-500">{lista.length} de {produtos.length} itens</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead><tr><th className="th">Item</th><th className="th">Categoria</th><th className="th">Fabricante</th><th className="th">Estoque mínimo</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {lista.map((p) => (
+              <tr key={p.id}><td className="td">{p.nome}</td><td className="td">{p.categoria?.nome}</td><td className="td">{p.fabricante ?? "-"}</td><td className="td"><EstoqueMinimo id={p.id} valor={p.estoque_minimo} /></td></tr>
+            ))}
+            {lista.length === 0 && <tr><td className="td text-slate-500" colSpan={4}>Nenhum item encontrado.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
