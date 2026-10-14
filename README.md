@@ -67,17 +67,11 @@ Você precisa de Node.js 18 ou mais novo, Git e um projeto no [Supabase](https:/
 
 ### 1. Banco de dados
 
-No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cada arquivo (abra o arquivo, copie todo o texto e cole no editor, não o nome do arquivo):
+No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens.
 
-1. `supabase/migrations/0001_schema.sql`
-2. `supabase/migrations/0002_seguranca_e_funcoes.sql`
-3. `supabase/migrations/0003_primeiro_administrador.sql`
-4. `supabase/seed.sql`
-5. `supabase/atualizar_0004_a_0010.sql` (técnicos, dedicados, chicotes, sem condição novo/usado, solicitações e agendamento; junta as migrações 0004 a 0010)
+Quem já tinha rodado as migrações antigas **não deve rodar este arquivo de novo**: o banco dele já está completo. Mudanças futuras virão como arquivos novos de atualização.
 
-Quem já tinha o sistema até a 0003 roda só o item 5. Quem já aplicou a 0004 roda só `supabase/atualizar_0005_a_0010.sql`. Quem já aplicou até a 0009 roda só `supabase/migrations/0010_solicitacao_dedicada.sql`. Todos podem ser repetidos sem problema. Os arquivos `0004` a `0010` em `migrations/` são o mesmo conteúdo separado, para consulta: **não rode os dois**.
-
-Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
+Deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 
 ### 2. Aplicativo
 
@@ -112,7 +106,7 @@ Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela se
 
 ## Testes do banco
 
-`supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas, estoque do técnico e itens dedicados. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), as migrações, o `seed.sql` e por fim `01_cenarios.sql`. Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
+`supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas, estoque do técnico e itens dedicados. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), `banco_completo.sql` e por fim `01_cenarios.sql`. Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
 
 ## Problemas comuns
 
@@ -121,8 +115,8 @@ Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela se
 | `npm install` diz que não acha o `package.json` | Você não está na pasta `web`. Rode `cd web` antes. |
 | `'next' não é reconhecido` | As dependências não foram instaladas. Rode `npm install` em `web/`. |
 | "Your project's URL and Key are required" | Falta o `web/.env.local` ou o nome da variável está errado. Reinicie o `npm run dev` depois de criá-lo. |
-| O SQL Editor dá erro de sintaxe em `migrations/0001...` | Foi colado o nome do arquivo. Cole o conteúdo dele. |
-| Entro e volto para o login, ou aparece "Aguardando liberação" | A conta ainda não foi liberada, ou não tem linha na tabela de usuários. Rode a migração `0003` e peça a um administrador para liberar. |
+| O SQL Editor dá erro de sintaxe em `supabase/banco_completo...` | Foi colado o nome do arquivo. Cole o conteúdo dele. |
+| Entro e volto para o login, ou aparece "Aguardando liberação" | A conta ainda não foi liberada, ou não tem linha na tabela de usuários. Peça a um administrador para liberar (o primeiro cadastro vira administrador sozinho). |
 | "Saldo insuficiente" | O local não tem a quantidade (livre ou dedicado, conforme a reserva escolhida). Confira o saldo na tela Estoque. |
 | "Sem permissão para movimentar este local" | O seu perfil ou os estoques liberados para você não incluem esse local. Peça a um administrador. |
 
