@@ -10,7 +10,8 @@ type Props = {
   unidades: Unidade[];
   // "reservado": usar item já reservado (saída/ajuste); "reservar": reservar no destino (transferência)
   reserva?: "reservado" | "reservar" | "nenhuma";
-  permiteNegativo?: boolean;
+  permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
+  condicaoFixaNovo?: boolean; // entrada por compra: sempre novo
   // Chicote que acompanha o módulo: "sempre" (entrada: caixa marcada por padrão), "opcional" (saída: caixa
   // "Enviar chicote junto", marcada por padrão) ou "nenhum".
   chicote?: "sempre" | "opcional" | "nenhum";
@@ -18,7 +19,7 @@ type Props = {
 
 export const itemVazio = (): ItemForm => ({ produto_id: "", condicao: "novo", quantidade: 1 });
 
-export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
+export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, condicaoFixaNovo, chicote = "nenhum" }: Props) {
   const [junto, setJunto] = useState(true);
   const sugerir = chicote !== "nenhum" && junto;
   const nomeUn = (u: Unidade) => nomeUnidade(u);
@@ -77,15 +78,28 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
               ))}
             </select>
           </label>
-          <label className="col-span-4 text-xs sm:col-span-2">{i === 0 && "Condição"}
-            <select className="campo" value={it.condicao} onChange={(e) => mudar(i, { condicao: e.target.value as "novo" | "usado" })}>
-              <option value="novo">Novo</option>
-              <option value="usado">Usado</option>
-            </select>
-          </label>
+          {condicaoFixaNovo ? (
+            <p className="col-span-4 pb-2 text-xs text-slate-600 sm:col-span-2">{i === 0 && <span className="block">Condição</span>}Novo</p>
+          ) : (
+            <label className="col-span-4 text-xs sm:col-span-2">{i === 0 && "Condição"}
+              <select className="campo" value={it.condicao} onChange={(e) => mudar(i, { condicao: e.target.value as "novo" | "usado" })}>
+                <option value="novo">Novo</option>
+                <option value="usado">Usado</option>
+              </select>
+            </label>
+          )}
+          {permiteNegativo && (
+            <label className="col-span-5 text-xs sm:col-span-2">{i === 0 && "Ajuste"}
+              <select className="campo" value={it.sentido ?? "mais"} onChange={(e) => mudar(i, { sentido: e.target.value as "mais" | "menos" })}>
+                <option value="mais">Aumentar</option>
+                <option value="menos">Reduzir</option>
+              </select>
+            </label>
+          )}
           <label className="col-span-3 text-xs sm:col-span-1">{i === 0 && "Qtd."}
-            <input type="number" className="campo" min={permiteNegativo ? undefined : 1} value={it.quantidade}
-              onChange={(e) => mudar(i, { quantidade: Number(e.target.value) })} required />
+            <input type="number" className="campo" min={1} step={1} inputMode="numeric" value={it.quantidade || ""}
+              onKeyDown={(e) => { if (["-", "+", "e", "E", ".", ","].includes(e.key)) e.preventDefault(); }}
+              onChange={(e) => { const n = Math.floor(Number(e.target.value)); mudar(i, { quantidade: n > 0 ? n : 0 }); }} required />
           </label>
           {reserva !== "nenhuma" && (
             <label className="col-span-12 text-xs sm:col-span-3">{i === 0 && (reserva === "reservar" ? "Dedicado para (opcional)" : "Item reservado de (opcional)")}
@@ -102,8 +116,8 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
               </select>
             </label>
           )}
-          <button type="button" className="btn-sec col-span-2 sm:col-span-1" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
-            Remover
+          <button type="button" className="btn-sec col-span-2 sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
+            Tirar da lista
           </button>
         </div>
       ))}
@@ -117,7 +131,7 @@ export function itensParaRpc(itens: ItemForm[]) {
   return itens.map((i) => ({
     produto_id: i.produto_id,
     condicao: i.condicao,
-    quantidade: i.quantidade,
+    quantidade: i.sentido === "menos" ? -Math.abs(i.quantidade) : Math.abs(i.quantidade),
     reservado_unidade_id: i.reservado_unidade_id || null,
     reservar_para_unidade_id: i.reservar_para_unidade_id || null,
   }));

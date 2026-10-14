@@ -18,6 +18,7 @@ export type ItemForm = {
   quantidade: number;
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";
+  sentido?: "mais" | "menos"; // só no ajuste de inventário
   auto?: boolean; // sugerido como chicote do módulo
 };
 
