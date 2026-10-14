@@ -30,7 +30,7 @@ São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galile
 
 - **Estoques fixos:** São Bernardo (SBC) e Nova Lima. A CSN UPV saiu por enquanto.
 - **Estoque do técnico:** cada técnico tem o próprio "estoque/carro", ligado ao estoque base dele (SBC ou Nova Lima). É um local como os outros, então a mesma lógica de saldo e transferência vale para ele.
-- Saldo sempre por **local + item + condição (novo ou usado)**.
+- Saldo sempre por **local + item** (a condição novo/usado foi retirada).
 
 ## 3. Níveis de acesso
 
@@ -46,12 +46,12 @@ São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galile
 
 ## 4. Tipos de movimentação
 
-Toda movimentação tem data, local, itens (item + condição + quantidade), responsável e observação. Nada é apagado: correção é estorno, e tudo fica na auditoria.
+Toda movimentação tem data, local, itens (item + quantidade), responsável e observação. Nada é apagado: correção é estorno, e tudo fica na auditoria.
 
 | Tipo | Efeito | Campos |
 |---|---|---|
 | **Entrada por compra** | + no local | Fornecedor, NF de entrada, observação |
-| **Devolução de cliente** | + no local (em geral usado) | Cliente/unidade, link do chamado Jira (opcional), observação |
+| **Devolução de cliente** | + no local | Cliente/unidade, link do chamado Jira (opcional), observação |
 | **Saída para cliente** | − no local | Cliente/unidade, finalidade (mobilização ou manutenção), link do chamado Jira (opcional, ex.: HW-5698), observação. Sem NF |
 | **Transferência** | − origem ao enviar, + destino só ao confirmar o recebimento | Data de envio, meio de envio, código de rastreio, prazo de chegada, cliente dedicado (opcional) |
 | **Consumo interno / teste** | − no local | Observação |
@@ -93,3 +93,15 @@ Entendi que enviar um Módulo Galileo significa enviar também um Chicote Galile
 ## 6. Próximo passo
 
 Montar a primeira versão do sistema (telas de cadastro, movimentações, transferência com recebimento, estoque do técnico e acompanhamento dos dedicados). Falta só você confirmar a plataforma de banco de dados que prefere, se tiver preferência (minha sugestão: Supabase/PostgreSQL, que já traz login e segurança por perfil).
+
+## 6. Atualização: técnicos e modo de envio 
+
+- **Técnicos** são cadastro próprio (`tecnico`): nome, vínculo **CLT ou PJ**, login opcional e situação (ativo ou não). Cada técnico tem o seu estoque (um local do tipo "técnico"). Técnicos sem login existem só para serem registrados como quem leva o material ao cliente.
+- **Saída para cliente** passa a ter **modo de envio** obrigatório (correios, sedex, retirada, transportadora ou técnico). Quando o modo é "técnico", informa-se qual técnico leva; quando o próprio técnico dá a baixa, ele é registrado automaticamente.
+- O código de rastreio vale para correios, sedex e transportadora.
+
+## 7. Itens dedicados: entrada e movimentação 
+
+- **Entram** como dedicados por entrada por compra, ajuste de inventário ou transferência (campo `reservar_para_unidade_id`).
+- Depois de dedicados, só se movimentam pela tela Dedicados: transferir para outro estoque ou enviar ao cliente (mesmas regras de modo de envio e técnico). O banco continua garantindo que um dedicado só saia para a própria unidade.
+- **Confirmação de recebimento:** quem opera o destino confirma. Se o destino é estoque de técnico, o operador do estoque de origem ou da base do técnico também confirma, além do administrador.
