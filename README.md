@@ -33,15 +33,45 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 Essas regras são garantidas no banco de dados, não só nas telas.
 
+### O que cada acesso faz, em palavras
+
+- **Administrador**: tudo. Vê todos os estoques, registra qualquer movimentação, cria e confirma transferências, atende solicitações, estorna, cadastra itens, clientes, técnicos e usuários, e libera ou bloqueia o acesso das pessoas.
+- **Operador de estoque**: trabalha nos estoques que o administrador liberou para ele (por exemplo, só Nova Lima). Neles registra entrada, saída, devolução, consumo, descarte e ajuste, envia transferências e atende solicitações que saem do estoque dele. Confirma recebimentos no estoque dele e também no estoque de um técnico quando foi ele quem enviou ou quando o técnico pertence à base dele (útil para técnico sem login). Não estorna nem mexe em cadastros.
+- **Técnico**: vê só o próprio estoque (o carro). Dá baixa de saída para cliente (ele fica registrado como o técnico que levou), confirma o que chega ao carro dele, envia ao cliente os itens dedicados que estão com ele e pede material. O pedido sempre é para o próprio estoque e sempre sai do **estoque base** dele; ele não escolhe a origem.
+- **Consulta**: só olha. Vê todos os estoques, transferências, solicitações, dedicados e histórico, sem nenhum botão de ação.
+- **Agendamento**: igual à Consulta, mais a possibilidade de **fazer solicitações de transferência** (escolhendo de onde sai e para onde vai). Não registra movimentação, não envia nem confirma transferência e não atende pedidos.
+
+Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e marcar "Ativo" em Usuários.
+
+### Termos usados no sistema
+
+- **Livre**: saldo que pode sair para qualquer cliente. **Dedicado**: saldo reservado para um cliente/unidade específico, fora do estoque livre.
+- **Em trânsito**: enviado, mas ainda não confirmado pelo destino. Não conta em nenhum dos dois estoques.
+- **Estoque base**: o estoque fixo (São Bernardo ou Nova Lima) de onde saem os pedidos de um técnico.
+- **Estoque do técnico**: o carro do técnico. Tem saldo próprio, como qualquer estoque.
+
+## Telas
+
+| Tela | Para que serve | Quem vê |
+|---|---|---|
+| Estoque | saldo por local e item, com categoria, filtros e alerta de mínimo | todos (técnico só o dele) |
+| Registrar | entradas e saídas | administrador, operador, técnico (só baixa de cliente) |
+| Transferências | lista de envios em andamento e concluídos; botão **Nova transferência** | todos (criar: administrador e operador) |
+| Solicitações | pedidos pendentes e concluídos; botão **Nova solicitação** | todos (criar: todos, menos Consulta) |
+| Dedicados | onde está cada item dedicado e como movimentá-lo | todos |
+| Histórico | todas as movimentações; estorno (administrador) | todos |
+| Cadastros | itens, clientes, técnicos e estoque mínimo | administrador |
+| Usuários | liberar pessoas, perfil e estoques do operador | administrador |
+
 ## Como usar no dia a dia
 
 1. **Entre** com e-mail e senha. Quem ainda não tem conta usa "Primeiro acesso" e espera um administrador liberar.
-2. **Estoque**: veja o saldo por local, filtre por local ou busque um item. Itens abaixo do mínimo aparecem em destaque.
-3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Para criar um item dedicado, escolha o cliente em "Dedicado para (opcional)" na entrada por compra ou no ajuste.
+2. **Estoque**: veja o saldo por local, filtre por local, tipo de estoque ou categoria, ou busque um item. Itens abaixo do mínimo aparecem em destaque.
+3. **Registrar**: escolha o tipo, o local, a data e os itens. Os tipos são entrada por compra (fornecedor e NF), devolução de cliente, saída para cliente, saída para estoque técnico, consumo interno ou teste, descarte e ajuste de inventário (com justificativa). Item e cliente/unidade se escolhem digitando para buscar. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Para criar um item dedicado, escolha o cliente em "Dedicado para (opcional)" na entrada por compra ou no ajuste.
 4. **Transferências**: a tela abre com as transferências em andamento e as concluídas; o botão **Nova transferência** abre o formulário. No formulário, escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
 5. **Solicitações**: a tela mostra as pendentes e as concluídas; o botão **Nova solicitação** abre o formulário. O técnico pede só para o próprio estoque, saindo do estoque base dele. Cada item do pedido pode ser pedido já dedicado a um cliente ("Dedicado para"). Administrador, operador e agendamento escolhem de onde e para onde. Administrador e operador (da origem) atendem, e o envio segue como transferência; o destino confirma o recebimento em Transferências.
 6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega, e movimente-o: **Transferir** para outro estoque ou **Enviar ao cliente**.
-7. **Histórico**: veja as movimentações. O administrador pode estornar uma movimentação informando o motivo.
+7. **Histórico**: veja as movimentações, quem fez e quando. O administrador pode estornar uma movimentação informando o motivo.
 
 ### Para o administrador
 
@@ -55,6 +85,7 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 docs/        modelo de dados e catálogo de itens (94 itens em 15 categorias)
 supabase/    banco de dados completo (um arquivo só, com os dados iniciais) e testes
 web/         aplicativo web (Next.js 14 + Tailwind + Supabase)
+testes-tela/ testes automáticos de tela (navegador), com banco e API locais de teste
 ```
 
 O app lê pelas tabelas e views (protegidas por perfil) e **grava só pelas funções do banco** (`registrar_movimentacao`, `criar_transferencia`, `confirmar_recebimento`, `cancelar_transferencia`, `estornar_movimentacao`, `criar_solicitacao`, `atender_solicitacao`, `cancelar_solicitacao`). Elas checam perfil e local, travam o local contra uso simultâneo e desfazem tudo se algum saldo ficar negativo.
@@ -108,6 +139,10 @@ Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela se
 
 `supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas, estoque do técnico e itens dedicados. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), `banco_completo.sql` e por fim `01_cenarios.sql`. Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
 
+## Testes de tela
+
+`testes-tela/` tem testes automáticos que abrem o app num navegador e percorrem as telas de cada perfil (entrada com e sem chicote, saída mista, estoque do técnico, solicitações, dedicados, filtros, agendamento e consulta). Eles sobem um banco e uma API **locais de teste**, sem tocar no seu Supabase. Para rodar: `testes-tela/rodar.sh` (precisa de PostgreSQL 15+ e Node; veja o cabeçalho do script). Cada verificação aparece com ✔ ou ✘.
+
 ## Problemas comuns
 
 | Sintoma | Causa e solução |
@@ -128,6 +163,7 @@ Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela se
 
 ## Próximos passos
 
+- Ajustes de aparência (front-end).
 - Tela de "esqueci minha senha".
 - Relatórios e exportação.
 - Publicação (por exemplo, na Vercel) com as mesmas variáveis do `.env.local`.
