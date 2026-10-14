@@ -28,6 +28,7 @@ export const TIPOS: Record<string, string> = {
   DESCARTE: "Descarte",
   AJUSTE: "Ajuste de inventário",
   TRANSFERENCIA: "Transferência",
+  SAIDA_TECNICO: "Saída para estoque técnico",
 };
 
 export const STATUS: Record<string, string> = {

@@ -6,6 +6,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 - **Saldo por local, item e condição** (novo ou usado). O saldo nunca é digitado: ele é calculado a partir das movimentações e nunca pode ficar negativo.
 - **Movimentações**: entrada por compra, devolução de cliente, saída para cliente, consumo interno ou teste, descarte e ajuste de inventário.
+- **Saída para estoque técnico**: em Registrar, escolha "Saída para estoque técnico" e o técnico. O saldo sai do seu estoque na hora, mas só entra no estoque do técnico quando ele confirma o recebimento (em Transferências). Até lá, o item aparece como "em trânsito". Técnico sem login não consegue confirmar sozinho: nesse caso um administrador confirma por ele.
 - **Transferências em duas etapas**: quem envia informa data, meio de envio, código de rastreio e prazo de chegada, e o saldo sai do estoque dele na hora. O destino acompanha o envio e só recebe o saldo quando confirma o recebimento.
 - **Técnicos (CLT e PJ)**: cada técnico é um cadastro com vínculo CLT ou PJ e tem o próprio estoque. Se ele usa o sistema, vê só o próprio estoque, pede material, dá baixa do que usou no cliente e confirma o que recebe. Técnicos sem login também podem ser cadastrados, para aparecerem como quem leva o material ao cliente.
 - **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva; quando o próprio técnico dá a baixa, ele já fica registrado como quem levou.

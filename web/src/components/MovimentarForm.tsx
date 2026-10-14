@@ -5,9 +5,11 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
 import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Tecnico, type Unidade } from "@/lib/types";
 
-type Props = { tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean };
+type Props = { tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean;
+  // Estoques de técnicos (destino da saída para estoque técnico), com o técnico dono de cada um.
+  estoquesTecnico: { local_id: number; tecnico: Tecnico }[] };
 
-export function MovimentarForm({ tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico }: Props) {
+export function MovimentarForm({ tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico, estoquesTecnico }: Props) {
   const router = useRouter();
   const [tipo, setTipo] = useState(tipos[0]);
   const [localId, setLocalId] = useState<number | "">(locais.length === 1 ? locais[0].id : "");
@@ -20,6 +22,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
   const [modo, setModo] = useState("");
   const [rastreio, setRastreio] = useState("");
   const [tecnicoId, setTecnicoId] = useState<number | "">("");
+  const [prazo, setPrazo] = useState("");
   const [obs, setObs] = useState("");
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()]);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -27,11 +30,25 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
 
   const cliente = tipo === "SAIDA_CLIENTE" || tipo === "DEVOLUCAO_CLIENTE";
   const saida = tipo === "SAIDA_CLIENTE";
+  const paraTecnico = tipo === "SAIDA_TECNICO";
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
     setMsg(null);
+    // Saída para estoque técnico = transferência: sai do estoque agora e só entra no do técnico quando ele confirmar.
+    if (tipo === "SAIDA_TECNICO") {
+      const destino = estoquesTecnico.find((e) => e.tecnico.id === tecnicoId)?.local_id;
+      const r = await supabaseBrowser().rpc("criar_transferencia", {
+        p: { origem_id: localId, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens) },
+      });
+      setEnviando(false);
+      if (r.error) return setMsg({ ok: false, texto: r.error.message });
+      setMsg({ ok: true, texto: "Enviado ao estoque do técnico. O saldo só entra nele quando o técnico confirmar o recebimento." });
+      setItens([itemVazio()]); setObs(""); setRastreio("");
+      router.refresh();
+      return;
+    }
     const { error } = await supabaseBrowser().rpc("registrar_movimentacao", {
       p: {
         tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
@@ -116,6 +133,32 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
         </div>
       )}
 
+      {paraTecnico && (
+        <div className="grid gap-3 sm:grid-cols-4">
+          <label className="text-sm sm:col-span-2">Estoque do técnico
+            <select className="campo mt-1" value={tecnicoId} onChange={(e) => setTecnicoId(Number(e.target.value))} required>
+              <option value="">Selecione</option>
+              {estoquesTecnico.map((e) => <option key={e.local_id} value={e.tecnico.id}>{e.tecnico.nome} ({VINCULOS[e.tecnico.vinculo]})</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Meio de envio
+            <select className="campo mt-1" value={modo} onChange={(e) => setModo(e.target.value)}>
+              <option value="">-</option>
+              {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Prazo de chegada
+            <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
+          </label>
+          {MODOS_COM_RASTREIO.includes(modo) && (
+            <label className="text-sm sm:col-span-4">Código de rastreio
+              <input className="campo mt-1" value={rastreio} onChange={(e) => setRastreio(e.target.value)} />
+            </label>
+          )}
+          <p className="text-xs text-slate-500 sm:col-span-4">O saldo sai do seu estoque agora e só entra no estoque do técnico quando ele confirmar o recebimento (em Transferências).</p>
+        </div>
+      )}
+
       {tipo === "ENTRADA_COMPRA" && (
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Fornecedor
@@ -130,8 +173,8 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
         </div>
       )}
 
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={tipo === "SAIDA_CLIENTE" ? associados : []}
-        unidades={unidades} reserva={tipo === "SAIDA_CLIENTE" ? "reservado" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={tipo === "SAIDA_CLIENTE" || paraTecnico ? associados : []}
+        unidades={unidades} reserva={tipo === "SAIDA_CLIENTE" ? "reservado" : paraTecnico ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; use quantidade negativa para baixar)" : "Observação"}
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />
