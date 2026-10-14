@@ -25,6 +25,15 @@ export default async function Transferencias() {
   const nome = new Map(todos.map((l) => [l.id, l.nome]));
   const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
   const meus = new Set(operaveis.map((l) => l.id));
+  const ehOperador = usuario.perfil === "admin" || usuario.perfil === "operador";
+  const tipoLocal = new Map(todos.map((l) => [l.id, l.tipo]));
+  const baseLocal = new Map(todos.map((l) => [l.id, l.base_id]));
+  // Quem opera o destino confirma. Quando o destino é estoque de técnico, o operador do estoque de origem
+  // ou da base do técnico também confirma (técnico sem login).
+  const podeConfirmar = (m: Mov) =>
+    meus.has(m.local_destino_id) ||
+    (ehOperador && tipoLocal.get(m.local_destino_id) === "tecnico" &&
+      (meus.has(m.local_origem_id) || (baseLocal.get(m.local_destino_id) != null && meus.has(baseLocal.get(m.local_destino_id)!))));
   const podeEnviar = usuario.perfil === "admin" || usuario.perfil === "operador";
 
   return (
@@ -49,7 +58,7 @@ export default async function Transferencias() {
             {m.observacao && <p className="mt-1 text-slate-600">{m.observacao}</p>}
             {m.status === "em_transito" && (
               <div className="mt-2 flex gap-2">
-                {meus.has(m.local_destino_id) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" />}
+                {podeConfirmar(m) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" />}
                 {meus.has(m.local_origem_id) && <Acao fn="cancelar_transferencia" args={{ p_id: m.id }} texto="Cancelar envio" secundario pedirMotivo />}
               </div>
             )}

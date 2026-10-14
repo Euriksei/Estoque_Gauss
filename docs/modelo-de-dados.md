@@ -99,3 +99,9 @@ Montar a primeira versão do sistema (telas de cadastro, movimentações, transf
 - **Técnicos** são cadastro próprio (`tecnico`): nome, vínculo **CLT ou PJ**, login opcional e situação (ativo ou não). Cada técnico tem o seu estoque (um local do tipo "técnico"). Técnicos sem login existem só para serem registrados como quem leva o material ao cliente.
 - **Saída para cliente** passa a ter **modo de envio** obrigatório (correios, sedex, retirada, transportadora ou técnico). Quando o modo é "técnico", informa-se qual técnico leva; quando o próprio técnico dá a baixa, ele é registrado automaticamente.
 - O código de rastreio vale para correios, sedex e transportadora.
+
+## 7. Itens dedicados: entrada e movimentação (migração 0005)
+
+- **Entram** como dedicados por entrada por compra, ajuste de inventário ou transferência (campo `reservar_para_unidade_id`).
+- Depois de dedicados, só se movimentam pela tela Dedicados: transferir para outro estoque ou enviar ao cliente (mesmas regras de modo de envio e técnico). O banco continua garantindo que um dedicado só saia para a própria unidade.
+- **Confirmação de recebimento:** quem opera o destino confirma. Se o destino é estoque de técnico, o operador do estoque de origem ou da base do técnico também confirma, além do administrador.

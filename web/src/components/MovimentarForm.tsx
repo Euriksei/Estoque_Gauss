@@ -174,7 +174,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
       )}
 
       <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={tipo === "SAIDA_CLIENTE" || paraTecnico ? associados : []}
-        unidades={unidades} reserva={tipo === "SAIDA_CLIENTE" ? "reservado" : paraTecnico ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
+        unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; use quantidade negativa para baixar)" : "Observação"}
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />

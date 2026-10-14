@@ -6,11 +6,11 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 - **Saldo por local, item e condição** (novo ou usado). O saldo nunca é digitado: ele é calculado a partir das movimentações e nunca pode ficar negativo.
 - **Movimentações**: entrada por compra, devolução de cliente, saída para cliente, consumo interno ou teste, descarte e ajuste de inventário.
-- **Saída para estoque técnico**: em Registrar, escolha "Saída para estoque técnico" e o técnico. O saldo sai do seu estoque na hora, mas só entra no estoque do técnico quando ele confirma o recebimento (em Transferências). Até lá, o item aparece como "em trânsito". Técnico sem login não consegue confirmar sozinho: nesse caso um administrador confirma por ele.
+- **Saída para estoque técnico**: em Registrar, escolha "Saída para estoque técnico" e o técnico. O saldo sai do seu estoque na hora, mas só entra no estoque do técnico quando ele confirma o recebimento (em Transferências). Até lá, o item aparece como "em trânsito". Técnico sem login não confirma sozinho: o operador do estoque de origem (ou da base do técnico) ou um administrador confirma por ele.
 - **Transferências em duas etapas**: quem envia informa data, meio de envio, código de rastreio e prazo de chegada, e o saldo sai do estoque dele na hora. O destino acompanha o envio e só recebe o saldo quando confirma o recebimento.
 - **Técnicos (CLT e PJ)**: cada técnico é um cadastro com vínculo CLT ou PJ e tem o próprio estoque. Se ele usa o sistema, vê só o próprio estoque, pede material, dá baixa do que usou no cliente e confirma o que recebe. Técnicos sem login também podem ser cadastrados, para aparecerem como quem leva o material ao cliente.
 - **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva; quando o próprio técnico dá a baixa, ele já fica registrado como quem levou.
-- **Itens dedicados a um cliente**: um item pode ser enviado já reservado para uma unidade de cliente. Ele fica fora do estoque livre e só pode sair para aquele cliente, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico.
+- **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
 - **Itens que andam juntos**: ao escolher um módulo (por exemplo, Galileo), o formulário sugere o chicote correspondente. A sugestão é editável.
 - **Alerta de estoque mínimo** na tela de Estoque.
 - **Auditoria**: nada é apagado. Correções são estornos, feitos só por administrador, e ficam registradas.
@@ -22,7 +22,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 | Ver saldo e histórico | todos os locais | só os estoques liberados para ele | só o próprio estoque | todos os locais |
 | Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | só saída para cliente, do próprio estoque | |
 | Criar transferência (enviar) | ✓ | ✓ (do seu estoque) | | |
-| Confirmar recebimento | ✓ | ✓ (no seu estoque) | ✓ (no próprio estoque) | |
+| Confirmar recebimento | ✓ | ✓ (no seu estoque; no estoque de técnico que ele enviou ou da sua base) | ✓ (no próprio estoque) | |
 | Pedir material | ✓ | ✓ | ✓ | |
 | Atender pedido do técnico | ✓ | ✓ | | |
 | Cadastros (itens, clientes, técnicos, mínimos) e usuários | ✓ | | | |
@@ -34,10 +34,10 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 
 1. **Entre** com e-mail e senha. Quem ainda não tem conta usa "Primeiro acesso" e espera um administrador liberar.
 2. **Estoque**: veja o saldo por local, filtre por local ou busque um item. Itens abaixo do mínimo aparecem em destaque.
-3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Na saída de um item dedicado, escolha o mesmo cliente em "Item reservado de (opcional)".
-4. **Transferências**: escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para enviar uma caixa dedicada, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
+3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Para criar um item dedicado, escolha o cliente em "Dedicado para (opcional)" na entrada por compra ou no ajuste.
+4. **Transferências**: escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
 5. **Solicitações** (técnico): peça os itens de que precisa. O operador atende e o material segue para o estoque do técnico. O técnico confirma o recebimento em Transferências.
-6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega.
+6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega, e movimente-o: **Transferir** para outro estoque ou **Enviar ao cliente**.
 7. **Histórico**: veja as movimentações. O administrador pode estornar uma movimentação informando o motivo.
 
 ### Para o administrador
@@ -70,7 +70,8 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 2. `supabase/migrations/0002_seguranca_e_funcoes.sql`
 3. `supabase/migrations/0003_primeiro_administrador.sql`
 4. `supabase/migrations/0004_tecnicos_e_modo_de_envio.sql`
-5. `supabase/seed.sql`
+5. `supabase/migrations/0005_dedicados_e_confirmacao.sql`
+6. `supabase/seed.sql`
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 

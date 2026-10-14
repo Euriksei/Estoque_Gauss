@@ -79,6 +79,33 @@ select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_en
 \set ON_ERROR_STOP on
 select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'chamado_url','','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',2)))) is not null from ids;
 select 'saídas com técnico: ' || (select string_agg(coalesce(t.nome,'-')||'/'||m.modo_envio, ', ' order by m.id) from movimentacao m left join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE');
+\echo '--- 6. Dedicado por compra e ajuste (Op NL), depois envio ao estoque do Ze PJ (sem login) confirmado por operador'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'numero_nf','NF2','itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',10,'reservar_para_unidade_id',u2)))) is not null from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',nl,'observacao','contagem','itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',2,'reservar_para_unidade_id',u2)))) is not null from ids;
+select 'NL chicote livre=' || coalesce((select sum(quantidade) from saldo where local_id=nl and produto_id=chi and reservado_unidade_id is null),0) || ' dedicado Mineração=' || (select sum(quantidade) from saldo where local_id=nl and produto_id=chi and reservado_unidade_id=u2) from ids;
+\set ON_ERROR_STOP off
+\echo '--- criar dedicado em consumo interno (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',1,'reservar_para_unidade_id',u2)))) from ids;
+\echo '--- consumo do estoque livre não toca no dedicado (saldo livre é 0; deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',1)))) from ids;
+\set ON_ERROR_STOP on
+select criar_transferencia(jsonb_build_object('origem_id',nl,'destino_id',(select id from local where nome='Estoque Ze PJ'),'modo_envio','correios','itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',4,'reservado_unidade_id',u2)))) as t4 from ids \gset
+\echo '--- Op SBC (sem relação com a transferência) tenta confirmar (deve falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+\set ON_ERROR_STOP off
+select confirmar_recebimento(:t4);
+\set ON_ERROR_STOP on
+\echo '--- Op NL (origem e base do técnico) confirma pelo Ze PJ'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select confirmar_recebimento(:t4);
+select 'Ze dedicado=' || (select sum(quantidade) from saldo where local_id=(select id from local where nome='Estoque Ze PJ') and reservado_unidade_id=u2) || ' (Op NL não vê o estoque do Ze; confira como admin) NL dedicado=' || (select sum(quantidade) from saldo where local_id=nl and reservado_unidade_id=u2) from ids;
+\echo '--- dedicado Mineração para outra unidade (deve falhar); depois entrega ao cliente certo, por técnico Ze PJ'
+\set ON_ERROR_STOP off
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',1,'reservado_unidade_id',u2)))) from ids;
+\set ON_ERROR_STOP on
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',3,'reservado_unidade_id',u2)))) is not null from ids;
+select 'NL dedicado restante=' || (select sum(quantidade) from saldo where local_id=nl and reservado_unidade_id=u2) from ids;
 \echo '--- consulta não escreve; vê tudo'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
 \set ON_ERROR_STOP off
