@@ -11,7 +11,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 - **Técnicos (CLT e PJ)**: cada técnico é um cadastro com vínculo CLT ou PJ e tem o próprio estoque. Se ele usa o sistema, vê só o próprio estoque, pede material, dá baixa do que usou no cliente e confirma o que recebe. Técnicos sem login também podem ser cadastrados, para aparecerem como quem leva o material ao cliente.
 - **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva; quando o próprio técnico dá a baixa, ele já fica registrado como quem levou.
 - **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
-- **Chicote junto com o módulo** (Galileo, FMC 130, FMC 150): na **entrada** (compra, devolução) o chicote entra junto com o módulo. Na **saída** (para cliente, para estoque técnico, transferência) há a caixa "Enviar chicote junto", marcada por padrão; desmarque para enviar só o módulo. Quantidades sempre editáveis.
+- **Chicote junto com o módulo** (todos os rastreadores Ruptela, GalileoSky e Teltonika): na **entrada** (compra, devolução) o chicote entra junto com o módulo. Na **saída** (para cliente, para estoque técnico, transferência) há a caixa "Enviar chicote junto", marcada por padrão; desmarque para enviar só o módulo. Quantidades sempre editáveis.
 - **Alerta de estoque mínimo** na tela de Estoque.
 - **Auditoria**: nada é apagado. Correções são estornos, feitos só por administrador, e ficam registradas.
 
@@ -49,7 +49,7 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 ## Estrutura do repositório
 
 ```
-docs/        modelo de dados e catálogo de itens (90 itens em 15 categorias)
+docs/        modelo de dados e catálogo de itens (94 itens em 15 categorias)
 supabase/    banco de dados: migrações, carga inicial e testes
 web/         aplicativo web (Next.js 14 + Tailwind + Supabase)
 ```
@@ -72,7 +72,8 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 4. `supabase/migrations/0004_tecnicos_e_modo_de_envio.sql`
 5. `supabase/migrations/0005_dedicados_e_confirmacao.sql`
 6. `supabase/migrations/0006_chicote_fmc130_fmc150.sql`
-7. `supabase/seed.sql`
+7. `supabase/migrations/0007_chicote_para_todos_os_rastreadores.sql`
+8. `supabase/seed.sql`
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 
