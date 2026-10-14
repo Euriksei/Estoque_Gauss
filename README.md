@@ -4,7 +4,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 ## O que o sistema faz
 
-- **Saldo por local, item e condição** (novo ou usado). O saldo nunca é digitado: ele é calculado a partir das movimentações e nunca pode ficar negativo.
+- **Saldo por local e item** (sem separar novo e usado). O saldo nunca é digitado: ele é calculado a partir das movimentações e nunca pode ficar negativo.
 - **Movimentações**: entrada por compra, devolução de cliente, saída para cliente, consumo interno ou teste, descarte e ajuste de inventário.
 - **Saída para estoque técnico**: em Registrar, escolha "Saída para estoque técnico" e o técnico. O saldo sai do seu estoque na hora, mas só entra no estoque do técnico quando ele confirma o recebimento (em Transferências). Até lá, o item aparece como "em trânsito". Técnico sem login não confirma sozinho: o operador do estoque de origem (ou da base do técnico) ou um administrador confirma por ele.
 - **Transferências em duas etapas**: quem envia informa data, meio de envio, código de rastreio e prazo de chegada, e o saldo sai do estoque dele na hora. O destino acompanha o envio e só recebe o saldo quando confirma o recebimento.
@@ -12,7 +12,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 - **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva; quando o próprio técnico dá a baixa, ele já fica registrado como quem levou.
 - **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
 - **Chicote junto com o módulo** (todos os rastreadores Ruptela, GalileoSky e Teltonika): na **entrada** (compra, devolução) e na **saída** (para cliente, para estoque técnico, transferência) há uma caixa de chicote junto, marcada por padrão; desmarque quando for só o módulo. Quantidades sempre editáveis.
-- **Condição**: entrada por compra é sempre "novo"; "usado" é escolhido na devolução de cliente (e nas saídas, transferências e ajustes, para mexer no saldo usado). Quantidades nunca aceitam negativo: no ajuste de inventário escolha **Aumentar** ou **Reduzir**.
+- **Quantidades** nunca aceitam negativo: no ajuste de inventário escolha **Aumentar** ou **Reduzir**.
 - **Busca nos seletores**: item e cliente/unidade ficam em ordem alfabética e filtram enquanto você digita.
 - **Alerta de estoque mínimo** na tela de Estoque.
 - **Auditoria**: nada é apagado. Correções são estornos, feitos só por administrador, e ficam registradas.
@@ -75,7 +75,8 @@ No Supabase, abra o **SQL Editor** e rode, **nesta ordem**, o *conteúdo* de cad
 5. `supabase/migrations/0005_dedicados_e_confirmacao.sql`
 6. `supabase/migrations/0006_chicote_fmc130_fmc150.sql`
 7. `supabase/migrations/0007_chicote_para_todos_os_rastreadores.sql`
-8. `supabase/seed.sql`
+8. `supabase/migrations/0008_sem_condicao_novo_usado.sql`
+9. `supabase/seed.sql`
 
 Cada um deve terminar com "Success". Para testes, em Authentication, Providers, Email você pode desligar "Confirm email".
 
@@ -123,7 +124,7 @@ Abra http://localhost:3000, clique em "Primeiro acesso" e crie sua conta. Ela se
 | "Your project's URL and Key are required" | Falta o `web/.env.local` ou o nome da variável está errado. Reinicie o `npm run dev` depois de criá-lo. |
 | O SQL Editor dá erro de sintaxe em `migrations/0001...` | Foi colado o nome do arquivo. Cole o conteúdo dele. |
 | Entro e volto para o login, ou aparece "Aguardando liberação" | A conta ainda não foi liberada, ou não tem linha na tabela de usuários. Rode a migração `0003` e peça a um administrador para liberar. |
-| "Saldo insuficiente" | O local não tem a quantidade (na condição e na reserva escolhidas). Confira o saldo na tela Estoque. |
+| "Saldo insuficiente" | O local não tem a quantidade (livre ou dedicado, conforme a reserva escolhida). Confira o saldo na tela Estoque. |
 | "Sem permissão para movimentar este local" | O seu perfil ou os estoques liberados para você não incluem esse local. Peça a um administrador. |
 
 ## Segurança

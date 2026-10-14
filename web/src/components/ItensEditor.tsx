@@ -12,15 +12,14 @@ type Props = {
   // "reservado": usar item já reservado (saída/ajuste); "reservar": reservar no destino (transferência)
   reserva?: "reservado" | "reservar" | "nenhuma";
   permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
-  condicaoFixaNovo?: boolean; // entrada por compra: sempre novo
   // Chicote que acompanha o módulo: "sempre" (entrada: caixa marcada por padrão), "opcional" (saída: caixa
   // "Enviar chicote junto", marcada por padrão) ou "nenhum".
   chicote?: "sempre" | "opcional" | "nenhum";
 };
 
-export const itemVazio = (): ItemForm => ({ produto_id: "", condicao: "novo", quantidade: 1 });
+export const itemVazio = (): ItemForm => ({ produto_id: "", quantidade: 1 });
 
-export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, condicaoFixaNovo, chicote = "nenhum" }: Props) {
+export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
   const [junto, setJunto] = useState(true);
   const sugerir = chicote !== "nenhum" && junto;
   const nomeUn = (u: Unidade) => nomeUnidade(u);
@@ -75,16 +74,6 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
             <Busca required value={it.produto_id} onChange={(v) => escolher(i, v)} placeholder="Digite para buscar o item"
               opcoes={produtos.map((p) => ({ value: p.id, label: p.nome }))} />
           </div>
-          {condicaoFixaNovo ? (
-            <p className="col-span-4 pb-2 text-xs text-slate-600 sm:col-span-2">{i === 0 && <span className="block">Condição</span>}Novo</p>
-          ) : (
-            <label className="col-span-4 text-xs sm:col-span-2">{i === 0 && "Condição"}
-              <select className="campo" value={it.condicao} onChange={(e) => mudar(i, { condicao: e.target.value as "novo" | "usado" })}>
-                <option value="novo">Novo</option>
-                <option value="usado">Usado</option>
-              </select>
-            </label>
-          )}
           {permiteNegativo && (
             <label className="col-span-5 text-xs sm:col-span-2">{i === 0 && "Ajuste"}
               <select className="campo" value={it.sentido ?? "mais"} onChange={(e) => mudar(i, { sentido: e.target.value as "mais" | "menos" })}>
@@ -119,7 +108,6 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
 export function itensParaRpc(itens: ItemForm[]) {
   return itens.map((i) => ({
     produto_id: i.produto_id,
-    condicao: i.condicao,
     quantidade: i.sentido === "menos" ? -Math.abs(i.quantidade) : Math.abs(i.quantidade),
     reservado_unidade_id: i.reservado_unidade_id || null,
     reservar_para_unidade_id: i.reservar_para_unidade_id || null,

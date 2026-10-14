@@ -14,7 +14,6 @@ export type Associado = { produto_id: number; associado_id: number; quantidade: 
 
 export type ItemForm = {
   produto_id: number | "";
-  condicao: "novo" | "usado";
   quantidade: number;
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";

@@ -5,7 +5,7 @@ A documentação completa (uso, perfis, instalação e problemas comuns) está n
 Next.js 14 + Supabase. O app lê pelas tabelas e views (protegidas por perfil no banco) e grava só pelas funções do banco (`registrar_movimentacao`, `criar_transferencia`, `confirmar_recebimento`, ...).
 
 ## Telas
-- **Estoque**: saldo por local, condição (novo/usado) e situação (livre ou dedicado); alerta de estoque mínimo. O técnico vê só o próprio carro.
+- **Estoque**: saldo por local e situação (livre ou dedicado); alerta de estoque mínimo. O técnico vê só o próprio carro.
 - **Registrar**: entrada por compra, devolução e saída para cliente (chamado do Jira opcional), consumo, descarte e ajuste. O técnico só dá baixa de saída para cliente.
 - **Transferências**: envio com data, meio, rastreio e prazo; o destino acompanha e confirma o recebimento. Item pode ser enviado já dedicado a um cliente.
 - **Solicitações**: o técnico pede material; o operador atende e o material segue para o carro do técnico.

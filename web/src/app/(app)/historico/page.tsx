@@ -10,7 +10,7 @@ type Mov = {
   modo_envio: string | null; codigo_rastreio: string | null; tecnico: { nome: string; vinculo: Vinculo } | null;
   local_origem_id: number | null; local_destino_id: number | null;
   unidade: { nome: string; cliente: { nome: string } | null } | null; criador: { nome: string } | null;
-  movimentacao_item: { quantidade: number; condicao: string; produto: { nome: string } | null }[];
+  movimentacao_item: { quantidade: number; produto: { nome: string } | null }[];
 };
 
 export default async function Historico() {
@@ -19,7 +19,7 @@ export default async function Historico() {
   const [{ todos }, { data }] = await Promise.all([
     getLocais(usuario),
     sb.from("movimentacao")
-      .select("id,tipo,status,data,chamado_url,observacao,numero_nf,modo_envio,codigo_rastreio,tecnico(nome,vinculo),local_origem_id,local_destino_id, unidade:unidade_cliente(nome, cliente(nome)), criador:usuario!movimentacao_criado_por_fkey(nome), movimentacao_item(quantidade,condicao, produto(nome))")
+      .select("id,tipo,status,data,chamado_url,observacao,numero_nf,modo_envio,codigo_rastreio,tecnico(nome,vinculo),local_origem_id,local_destino_id, unidade:unidade_cliente(nome, cliente(nome)), criador:usuario!movimentacao_criado_por_fkey(nome), movimentacao_item(quantidade, produto(nome))")
       .neq("tipo", "TRANSFERENCIA").order("id", { ascending: false }).limit(150),
   ]);
   const movs = (data ?? []) as unknown as Mov[];
@@ -38,7 +38,7 @@ export default async function Historico() {
                 <td className="td whitespace-nowrap">{m.data}</td>
                 <td className="td">{TIPOS[m.tipo]}{m.status === "cancelado" && " (estornada)"}</td>
                 <td className="td">{nome.get((m.local_origem_id ?? m.local_destino_id)!) ?? "-"}</td>
-                <td className="td">{m.movimentacao_item.map((i, k) => <div key={k}>{i.quantidade}× {i.produto?.nome} ({i.condicao})</div>)}</td>
+                <td className="td">{m.movimentacao_item.map((i, k) => <div key={k}>{i.quantidade}× {i.produto?.nome}</div>)}</td>
                 <td className="td text-xs text-slate-600">
                   {m.unidade && <div>{nomeUnidade({ id: 0, cliente_id: 0, nome: m.unidade.nome, cliente: m.unidade.cliente })}</div>}
                   {m.numero_nf && <div>NF {m.numero_nf}</div>}

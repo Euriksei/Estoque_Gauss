@@ -22,7 +22,7 @@ export function AtenderSolicitacao({ id, itens, origens }: { id: number; itens: 
       </select>
       <button className="btn" disabled={!origem} onClick={async () => {
         const { error } = await supabaseBrowser().rpc("atender_solicitacao", {
-          p_id: id, p: { origem_id: origem, modo_envio: modo, itens: itens.map((i) => ({ ...i, condicao: "novo" })) },
+          p_id: id, p: { origem_id: origem, modo_envio: modo, itens },
         });
         if (error) setErro(error.message); else router.refresh();
       }}>Atender (envia para o carro)</button>

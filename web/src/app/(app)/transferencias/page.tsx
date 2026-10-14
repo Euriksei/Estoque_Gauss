@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 type Mov = {
   id: number; status: string; data: string; modo_envio: string | null; codigo_rastreio: string | null; prazo_chegada: string | null;
   local_origem_id: number; local_destino_id: number; observacao: string | null; recebido_em: string | null;
-  movimentacao_item: { quantidade: number; condicao: string; reservar_para_unidade_id: number | null; reservado_unidade_id: number | null; produto: { nome: string } | null }[];
+  movimentacao_item: { quantidade: number; reservar_para_unidade_id: number | null; reservado_unidade_id: number | null; produto: { nome: string } | null }[];
 };
 
 export default async function Transferencias() {
@@ -18,7 +18,7 @@ export default async function Transferencias() {
   const [{ todos, operaveis }, cat, { data }] = await Promise.all([
     getLocais(usuario), getCatalogo(),
     sb.from("movimentacao")
-      .select("id,status,data,modo_envio,codigo_rastreio,prazo_chegada,local_origem_id,local_destino_id,observacao,recebido_em, movimentacao_item(quantidade,condicao,reservar_para_unidade_id,reservado_unidade_id, produto(nome))")
+      .select("id,status,data,modo_envio,codigo_rastreio,prazo_chegada,local_origem_id,local_destino_id,observacao,recebido_em, movimentacao_item(quantidade,reservar_para_unidade_id,reservado_unidade_id, produto(nome))")
       .eq("tipo", "TRANSFERENCIA").order("id", { ascending: false }).limit(100),
   ]);
   const movs = (data ?? []) as unknown as Mov[];
@@ -52,7 +52,7 @@ export default async function Transferencias() {
             </div>
             <ul className="mt-2 list-disc pl-5">
               {m.movimentacao_item.map((i, k) => (
-                <li key={k}>{i.quantidade}× {i.produto?.nome} ({i.condicao}){(i.reservar_para_unidade_id || i.reservado_unidade_id) && ` · dedicado: ${nomeUn.get((i.reservar_para_unidade_id ?? i.reservado_unidade_id)!)}`}</li>
+                <li key={k}>{i.quantidade}× {i.produto?.nome}{(i.reservar_para_unidade_id || i.reservado_unidade_id) && ` · dedicado: ${nomeUn.get((i.reservar_para_unidade_id ?? i.reservado_unidade_id)!)}`}</li>
               ))}
             </ul>
             {m.observacao && <p className="mt-1 text-slate-600">{m.observacao}</p>}

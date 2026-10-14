@@ -53,7 +53,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
     const { error } = await supabaseBrowser().rpc("registrar_movimentacao", {
       p: {
         tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
-        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens).map((i) => (tipo === "ENTRADA_COMPRA" ? { ...i, condicao: "novo" } : i)),
+        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens),
         modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null,
       },
     });
@@ -174,7 +174,7 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
 
       <ItensEditor key={tipo} itens={itens} onChange={setItens} produtos={produtos} associados={associados}
         chicote={tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" ? "sempre" : tipo === "SAIDA_CLIENTE" || paraTecnico ? "opcional" : "nenhum"}
-        unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} condicaoFixaNovo={tipo === "ENTRADA_COMPRA"} />
+        unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; escolha Aumentar ou Reduzir em cada item)" : "Observação"}
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />

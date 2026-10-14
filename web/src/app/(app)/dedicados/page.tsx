@@ -5,7 +5,7 @@ import { TIPOS, STATUS, nomeUnidade } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Pos = { unidade_id: number; produto_id: number; condicao: string; situacao: "em_local" | "em_transito" | "entregue"; local_id: number | null; quantidade: number };
+type Pos = { unidade_id: number; produto_id: number; situacao: "em_local" | "em_transito" | "entregue"; local_id: number | null; quantidade: number };
 type Hist = { unidade_id: number; produto_id: number; movimentacao_id: number; tipo: string; status: string; data: string; local_origem_id: number | null; local_destino_id: number | null; quantidade: number };
 
 const SITUACAO = { em_local: "Guardado", em_transito: "Em trânsito", entregue: "Entregue ao cliente" };
@@ -41,13 +41,13 @@ export default async function Dedicados() {
             <tbody className="divide-y divide-slate-100">
               {posicoes.filter((p) => p.unidade_id === u).map((p, i) => (
                 <tr key={i}>
-                  <td className="td">{nomeProd.get(p.produto_id)} ({p.condicao})</td>
+                  <td className="td">{nomeProd.get(p.produto_id)}</td>
                   <td className="td">{SITUACAO[p.situacao]}</td>
                   <td className="td">{p.local_id ? nomeLocal.get(p.local_id) ?? "-" : "-"}</td>
                   <td className="td text-right font-medium">{p.quantidade}</td>
                   <td className="td">
                     {podeMover && p.situacao === "em_local" && p.local_id && operaveisIds.has(p.local_id) && p.quantidade > 0 && (
-                      <DedicadoAcoes unidadeId={u} produtoId={p.produto_id} condicao={p.condicao} localId={p.local_id} max={p.quantidade}
+                      <DedicadoAcoes unidadeId={u} produtoId={p.produto_id} localId={p.local_id} max={p.quantidade}
                         destinos={todos} tecnicos={tecnicos.filter((t) => t.ativo)} ehTecnico={usuario.perfil === "tecnico"} podeTransferir={usuario.perfil !== "tecnico"} />
                     )}
                   </td>

@@ -3,7 +3,7 @@ import { getUsuario, getCatalogo, getLocais, nomeUnidade } from "@/lib/dados";
 
 export const dynamic = "force-dynamic";
 
-type Linha = { local_id: number; produto_id: number; condicao: "novo" | "usado"; reservado_unidade_id: number | null; quantidade: number };
+type Linha = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number };
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string } }) {
   const usuario = (await getUsuario())!;
@@ -73,19 +73,18 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
       <div className="card overflow-x-auto p-0">
         <table className="w-full">
           <thead className="border-b border-slate-200">
-            <tr><th className="th">Local</th><th className="th">Item</th><th className="th">Condição</th><th className="th">Situação</th><th className="th text-right">Qtd.</th></tr>
+            <tr><th className="th">Local</th><th className="th">Item</th><th className="th">Situação</th><th className="th text-right">Qtd.</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {linhas.map((s, i) => (
               <tr key={i}>
                 <td className="td">{nomeLocal.get(s.local_id)}</td>
                 <td className="td">{nomeProduto.get(s.produto_id)?.nome}</td>
-                <td className="td">{s.condicao === "novo" ? "Novo" : "Usado"}</td>
                 <td className="td">{s.reservado_unidade_id ? `Dedicado: ${nomeUn.get(s.reservado_unidade_id)}` : "Livre"}</td>
                 <td className="td text-right font-medium">{s.quantidade}</td>
               </tr>
             ))}
-            {linhas.length === 0 && <tr><td className="td text-slate-500" colSpan={5}>Nenhum item em estoque.</td></tr>}
+            {linhas.length === 0 && <tr><td className="td text-slate-500" colSpan={4}>Nenhum item em estoque.</td></tr>}
           </tbody>
         </table>
       </div>

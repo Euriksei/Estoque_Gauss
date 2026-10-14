@@ -30,7 +30,7 @@ São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galile
 
 - **Estoques fixos:** São Bernardo (SBC) e Nova Lima. A CSN UPV saiu por enquanto.
 - **Estoque do técnico:** cada técnico tem o próprio "estoque/carro", ligado ao estoque base dele (SBC ou Nova Lima). É um local como os outros, então a mesma lógica de saldo e transferência vale para ele.
-- Saldo sempre por **local + item + condição (novo ou usado)**.
+- Saldo sempre por **local + item** (a condição novo/usado foi retirada na migração 0008).
 
 ## 3. Níveis de acesso
 
@@ -46,12 +46,12 @@ São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galile
 
 ## 4. Tipos de movimentação
 
-Toda movimentação tem data, local, itens (item + condição + quantidade), responsável e observação. Nada é apagado: correção é estorno, e tudo fica na auditoria.
+Toda movimentação tem data, local, itens (item + quantidade), responsável e observação. Nada é apagado: correção é estorno, e tudo fica na auditoria.
 
 | Tipo | Efeito | Campos |
 |---|---|---|
 | **Entrada por compra** | + no local | Fornecedor, NF de entrada, observação |
-| **Devolução de cliente** | + no local (em geral usado) | Cliente/unidade, link do chamado Jira (opcional), observação |
+| **Devolução de cliente** | + no local | Cliente/unidade, link do chamado Jira (opcional), observação |
 | **Saída para cliente** | − no local | Cliente/unidade, finalidade (mobilização ou manutenção), link do chamado Jira (opcional, ex.: HW-5698), observação. Sem NF |
 | **Transferência** | − origem ao enviar, + destino só ao confirmar o recebimento | Data de envio, meio de envio, código de rastreio, prazo de chegada, cliente dedicado (opcional) |
 | **Consumo interno / teste** | − no local | Observação |
