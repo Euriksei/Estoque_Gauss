@@ -32,7 +32,7 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 
 1. **Entre** com e-mail e senha. Quem ainda não tem conta usa "Primeiro acesso" e espera um administrador liberar.
 2. **Estoque**: veja o saldo por local, filtre por local ou busque um item. Itens abaixo do mínimo aparecem em destaque.
-3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Para devolver o que estava reservado a um cliente, use "Item reservado de".
+3. **Registrar**: escolha o tipo, o local, a data e os itens. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na saída de um item dedicado, escolha o mesmo cliente em "Item reservado de (opcional)".
 4. **Transferências**: escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para enviar uma caixa dedicada, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
 5. **Solicitações** (técnico): peça os itens de que precisa. O operador atende e o material segue para o carro. O técnico confirma o recebimento em Transferências.
 6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega.
