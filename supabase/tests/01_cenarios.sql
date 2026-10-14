@@ -1,0 +1,88 @@
+\set QUIET on
+\pset format unaligned
+\pset tuples_only on
+-- usuários
+insert into auth.users (id,email,raw_user_meta_data) values
+ ('00000000-0000-0000-0000-00000000000a','admin@x','{"nome":"Admin"}'),
+ ('00000000-0000-0000-0000-0000000000b1','nl@x','{"nome":"Op NL"}'),
+ ('00000000-0000-0000-0000-0000000000b2','sbc@x','{"nome":"Op SBC"}'),
+ ('00000000-0000-0000-0000-0000000000c1','tec@x','{"nome":"Tec"}'),
+ ('00000000-0000-0000-0000-0000000000d1','cons@x','{"nome":"Cons"}');
+update usuario set ativo=true, perfil='admin' where email='admin@x';
+update usuario set ativo=true, perfil='operador' where email in ('nl@x','sbc@x');
+update usuario set ativo=true, perfil='tecnico' where email='tec@x';
+update usuario set ativo=true where email='cons@x';
+insert into usuario_local select u.id, l.id from usuario u, local l where (u.email='nl@x' and l.nome='Nova Lima') or (u.email='sbc@x' and l.nome like 'São%');
+insert into local (nome,tipo,tecnico_id,base_id) select 'Carro Tec','tecnico',id,(select id from local where nome='Nova Lima') from usuario where email='tec@x';
+insert into cliente(nome) values ('Gerdau'),('CSN'); insert into unidade_cliente(cliente_id,nome) select id,'Ouro Branco' from cliente where nome='Gerdau'; insert into unidade_cliente(cliente_id,nome) select id,'Mineração' from cliente where nome='CSN';
+create temp table ids as select
+ (select id from local where nome='Nova Lima') nl, (select id from local where nome like 'São%') sbc, (select id from local where nome='Carro Tec') car,
+ (select id from produto where nome='FMC 650') fmc, (select id from produto where nome='Chicote Galileo') chi,
+ (select id from unidade_cliente where nome='Ouro Branco') u1, (select id from unidade_cliente where nome='Mineração') u2;
+grant select on ids to authenticated;
+set role authenticated;
+\echo '--- 1. Op NL: compra 100 FMC650 no Nova Lima'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'numero_nf','NF1','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',100)))) is not null from ids;
+\echo '--- 2. saída de 150 deve falhar'
+\set ON_ERROR_STOP off
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',150)))) from ids;
+\echo '--- 3. Op NL transfere 10 p/ SBC (em trânsito) e saldos'
+\set ON_ERROR_STOP on
+select criar_transferencia(jsonb_build_object('origem_id',nl,'destino_id',sbc,'modo_envio','sedex','codigo_rastreio','AB123','prazo_chegada','2026-10-20','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',10)))) as transf from ids \gset
+select 'NL=' || coalesce((select sum(quantidade) from saldo where local_id=nl and produto_id=fmc),0) || ' SBC=' || coalesce((select sum(quantidade) from saldo where local_id=sbc and produto_id=fmc),0) || ' (op NL nao ve SBC) em_transito=' || (select count(*) from transferencias_em_transito) from ids;
+\set ON_ERROR_STOP off
+\echo '--- Op NL tenta confirmar recebimento do próprio envio (deve falhar)'
+select confirmar_recebimento(:transf);
+\set ON_ERROR_STOP on
+\echo '--- Op SBC confirma'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+select confirmar_recebimento(:transf);
+select 'SBC=' || coalesce((select sum(quantidade) from saldo where local_id=sbc and produto_id=fmc),0) from ids;
+\echo '--- 4. Técnico pede material, Op NL atende, técnico confirma'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select criar_solicitacao(jsonb_build_object('observacao','preciso','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',8)))) as sol from ids \gset
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select atender_solicitacao(:sol, jsonb_build_object('origem_id',nl,'modo_envio','tecnico','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',8)))) as t2 from ids \gset
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select 'tecnico ve saldo carro antes=' || coalesce((select sum(quantidade) from saldo where local_id=car),0) || ' saldo NL visível p/ técnico=' || (select count(*) from saldo where local_id=nl) from ids;
+select confirmar_recebimento(:t2);
+select 'carro=' || (select sum(quantidade) from saldo where local_id=car and produto_id=fmc) || ' linhas_saldo_visiveis=' || (select count(*) from saldo) from ids;
+\echo '--- 5. Dedicado: Op NL manda 5 reservados p/ Ouro Branco ao técnico; técnico entrega'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select criar_transferencia(jsonb_build_object('origem_id',nl,'destino_id',car,'modo_envio','tecnico','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',5,'reservar_para_unidade_id',u1)))) as t3 from ids \gset
+select 'NL livre=' || (select sum(quantidade) from saldo where local_id=nl and reservado_unidade_id is null) || ' posição dedicado: ' || (select string_agg(situacao||':'||quantidade, ',') from dedicados_posicao) from ids;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select confirmar_recebimento(:t3);
+select 'carro livre=' || (select sum(quantidade) from saldo where local_id=car and reservado_unidade_id is null) || ' reservado=' || (select sum(quantidade) from saldo where local_id=car and reservado_unidade_id is not null) from ids;
+\set ON_ERROR_STOP off
+\echo '--- técnico tenta usar reservado para OUTRA unidade (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',car,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',5,'reservado_unidade_id',u1)))) from ids;
+\echo '--- técnico tenta consumo interno (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',car,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- técnico tenta dar baixa em estoque do Nova Lima (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- técnico livre: reservado sendo usado como livre (saída de 9 > 8 livres) deve falhar'
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',car,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',9)))) from ids;
+\set ON_ERROR_STOP on
+\echo '--- técnico entrega os 5 reservados ao Ouro Branco (sem chamado)'
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',car,'unidade_id',u1,'finalidade','mobilizacao','itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',5,'reservado_unidade_id',u1)))) is not null from ids;
+select 'dedicado: ' || (select string_agg(situacao||':'||quantidade, ',') from dedicados_posicao) || ' hist=' || (select count(*) from dedicados_historico);
+\echo '--- consulta não escreve; vê tudo'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
+\set ON_ERROR_STOP off
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'itens','[]'::jsonb)) from ids;
+insert into produto(nome) values ('x');
+\set ON_ERROR_STOP on
+select 'consulta vê saldo linhas=' || (select count(*) from saldo);
+\echo '--- operador não estorna; admin estorna'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+\set ON_ERROR_STOP off
+select estornar_movimentacao(1,'teste');
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+\echo '--- admin estorna a compra de 100 (deve falhar: saldo já usado)'
+\set ON_ERROR_STOP off
+select estornar_movimentacao(1,'erro de digitação');
+\set ON_ERROR_STOP on
+select 'auditoria linhas=' || (select count(*) from auditoria);

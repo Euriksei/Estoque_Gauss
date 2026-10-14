@@ -1,0 +1,91 @@
+﻿item,categoria,fabricante,fornecedor_padrao,prazo_medio_dias,estoque_minimo
+ECO 5,Rastreamento e telemetria,Ruptela,Ruptela,,0
+ECO-LIGHT +S,Rastreamento e telemetria,Ruptela,Ruptela,,0
+FMB920,Rastreamento e telemetria,Teltonika,Teltonika,,0
+FMC 130,Rastreamento e telemetria,Teltonika,Teltonika,25,150
+FMC 150,Rastreamento e telemetria,Teltonika,Teltonika,25,200
+FMC 650,Rastreamento e telemetria,Teltonika,Teltonika,25,250
+Galileo 7x / 10HUB,Rastreamento e telemetria,GalileoSky,SGBras,15,100
+GalileoSky WIFI,Rastreamento e telemetria,GalileoSky,,,0
+GF Pro4,Rastreamento e telemetria,Ruptela,Ruptela,,0
+HCV5,Rastreamento e telemetria,Ruptela,Ruptela,,0
+Omnicomm Optim,Rastreamento e telemetria,Omnicomm,Omnicomm,,20
+Omnicomm Profi,Rastreamento e telemetria,Omnicomm,Omnicomm,,0
+PRO5 Lite,Rastreamento e telemetria,Ruptela,Ruptela,30,0
+TRACE 5,Rastreamento e telemetria,Ruptela,Ruptela,30,0
+SUNTECH Plug Play,Rastreamento e telemetria,Suntech,Suntech,15,0
+Camera Contexto (3Fios),Câmeras,,Intelbrás,30,0
+Camera Contexto (3Fios) DashCAM,Câmeras,,Intelbrás,30,0
+Camera Fadiga (T),Câmeras,,Intelbrás,30,0
+Camera Fadiga (T) DashCAM,Câmeras,,Intelbrás,30,0
+Camera frontal (vermelha),Câmeras,,Intelbrás,30,0
+Camera IP,Câmeras,,Intelbrás,30,0
+Camera de ré,Câmeras,,Mercado Livre,10,0
+Camera Contadora passageiros,Câmeras,,Intelbrás,30,0
+DVR DashCAM,MDVR e monitores,,Intelbrás,30,0
+DVR Intelbras 3404,MDVR e monitores,,Intelbrás,30,0
+DVR Intelbras 5404,MDVR e monitores,,Intelbrás,30,0
+Monitor Intelbras CP4,MDVR e monitores,,Intelbrás,30,0
+Monitor de alarme,MDVR e monitores,,Intelbrás,30,0
+Cabo rede 3 metros,"Cabos, chicotes e conexões",,Intelbrás,30,0
+Chicote Pro5,"Cabos, chicotes e conexões",,Securitek,30,0
+Chicote Pro4,"Cabos, chicotes e conexões",,Securitek,30,0
+Chicote Trace5,"Cabos, chicotes e conexões",,Securitek,30,0
+Chicote FMC650,"Cabos, chicotes e conexões",,Securitek,30,0
+Chicote FMC150,"Cabos, chicotes e conexões",,,,
+Chicote FMC130,"Cabos, chicotes e conexões",,,,
+Chicote Galileo,"Cabos, chicotes e conexões",,,,
+Extensão cameras Intelbras,"Cabos, chicotes e conexões",,Intelbrás,30,0
+Extensão cameras Intelbras DashCAM,"Cabos, chicotes e conexões",,Intelbrás,30,0
+Switch cabo rede Intelbras,"Cabos, chicotes e conexões",,Intelbrás,30,0
+Tablet Multilaser 7'',Tablets e acessórios,,Roboflex,20,0
+Tablet Samsung,Tablets e acessórios,,Roboflex,20,20
+"Suporte Case Tablet Multilaser 7""",Tablets e acessórios,,Roboflex,20,0
+"Suporte Case Tablet Multilaser 7"" TURTURCASE",Tablets e acessórios,,Roboflex,20,0
+"Suporte Case Tablet Samsung 8""",Tablets e acessórios,,Roboflex,20,30
+Suporte Case Tablet Samsung Ventilada,Tablets e acessórios,,Roboflex,20,0
+"Suporte Tablet Multilaser 7""",Tablets e acessórios,,Roboflex,20,0
+"Suporte Tablet Multilaser 7"" TURTURCASE",Tablets e acessórios,,Roboflex,20,0
+"Suporte Tablet Samsung 8""",Tablets e acessórios,,Roboflex,20,20
+Suporte Ventosa,Tablets e acessórios,,Roboflex,20,20
+Carregador DC/DC 12V Tablet Roboflex,Tablets e acessórios,,Roboflex,20,30
+Cartão RFID 125,RFID e identificação,,Mercado Livre,5,200
+"Cartão RFID 13,56",RFID e identificação,,Mercado Livre,5,500
+Leitor RFID 125 DREXIA,RFID e identificação,,SGBras,15,0
+Leitor RFID 125 SGBRAS,RFID e identificação,,SGBras,15,0
+"Leitor RFID 13,56 / 125",RFID e identificação,,SGBras,15,500
+"Leitor RFID 13,56 DREXIA",RFID e identificação,,Drexia,,0
+"Leitor RFID 13,56 SGBRAS",RFID e identificação,,SGBras,15,0
+Baterias Plug&Play M11,Alimentação e conversores,,M11N Baterias,15,5
+Carregador Plug Play,Alimentação e conversores,,M11N Baterias,15,5
+Conversor locomotiva 1 Amper,Alimentação e conversores,,Anderson Conversores,10,0
+Conversor locomotiva 3 Amper,Alimentação e conversores,,Anderson Conversores,10,20
+Conversor locomotiva 15 Amper,Alimentação e conversores,,MCE Técnica,15,0
+Sensor de temperatura,Sensores e sinalização,,AutoSender,10,20
+Sensor Betoneira,Sensores e sinalização,,AutoSender,10,0
+Buzzer,Sensores e sinalização,,Mercado Livre,10,200
+Repetir de Sinal WIFI,Sensores e sinalização,,PrimeField,30,0
+Leitor EasyCAN,Sensores e sinalização,,Teltonika,30,50
+Relé Bloqueio 12 Volts,Automação e controle,,Mercado Livre,10,30
+Relé Bloqueio 24 Volts,Automação e controle,,Mercado Livre,10,30
+Relé Finder,Automação e controle,,Finder Tech,30,30
+Velocimetro Universal,Automação e controle,,Mercado Livre,10,0
+Valvula Solenoide CTA,Automação e controle,,Securitek,30,0
+Antena Move2GO,Comunicação e conectividade,,PrimeField,,0
+Chip Claro M2M,Comunicação e conectividade,,Securitek,30,0
+Chip Vivo M2M,Comunicação e conectividade,,Securitek,30,100
+Chip Arqia M2M,Comunicação e conectividade,,Securitek,30,0
+Chip Claro Voz e Dados,Comunicação e conectividade,,Securitek,30,0
+Chip Vivo Voz e Dados,Comunicação e conectividade,,Securitek,30,0
+Chip Arqia Voz e Dados,Comunicação e conectividade,,Securitek,30,0
+Cartão Memória 128GB,Armazenamento de dados,,Intelbrás,30,0
+Cartão Memória 256GB,Armazenamento de dados,,Intelbrás,30,0
+Cartão Memória Galileo,Armazenamento de dados,,SGBras,15,0
+Cartão Memória 128GB MICRO SD,Armazenamento de dados,,Intelbrás,30,0
+Cartão Memória 256GB MICRO SD,Armazenamento de dados,,Intelbrás,30,0
+Caixa patola Locomotiva,Caixas e gabinetes,,Mercado Livre,10,5
+Caixa patola para Fadiga,Caixas e gabinetes,,Mercado Livre,10,50
+KIT CTA Comboio,Controle de abastecimento e comboio,,CTA,30,0
+KIT CTA Posto fixo,Controle de abastecimento e comboio,,CTA,30,0
+Galielo Rotograma falado,Navegação e orientação veicular,,SGBras,15,20
+Smartlink Carretinha,Integração veicular,,PrimeField,30,0
