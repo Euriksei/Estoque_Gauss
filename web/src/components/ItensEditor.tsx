@@ -11,7 +11,7 @@ type Props = {
   // "reservado": usar item já reservado (saída/ajuste); "reservar": reservar no destino (transferência)
   reserva?: "reservado" | "reservar" | "nenhuma";
   permiteNegativo?: boolean;
-  // Chicote que acompanha o módulo: "sempre" (entrada: já vem junto, editável), "opcional" (saída: caixa
+  // Chicote que acompanha o módulo: "sempre" (entrada: caixa marcada por padrão), "opcional" (saída: caixa
   // "Enviar chicote junto", marcada por padrão) ou "nenhum".
   chicote?: "sempre" | "opcional" | "nenhum";
 };
@@ -20,7 +20,7 @@ export const itemVazio = (): ItemForm => ({ produto_id: "", condicao: "novo", qu
 
 export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
   const [junto, setJunto] = useState(true);
-  const sugerir = chicote === "sempre" || (chicote === "opcional" && junto);
+  const sugerir = chicote !== "nenhum" && junto;
   const nomeUn = (u: Unidade) => nomeUnidade(u);
 
   function mudar(i: number, parte: Partial<ItemForm>) {
@@ -59,13 +59,14 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
 
   return (
     <div className="space-y-2">
-      {chicote === "opcional" && (
+      {chicote !== "nenhum" && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={junto} onChange={(e) => alternar(e.target.checked)} />
-          Enviar chicote junto com o módulo (desmarque para enviar só o módulo)
+          {chicote === "sempre"
+            ? "Dar entrada no chicote junto com o módulo (desmarque para entrar só o módulo)"
+            : "Enviar chicote junto com o módulo (desmarque para enviar só o módulo)"}
         </label>
       )}
-      {chicote === "sempre" && <p className="text-xs text-slate-600">Ao escolher um módulo, o chicote dele entra junto (você pode editar a quantidade ou remover).</p>}
       {itens.map((it, i) => (
         <div key={i} className="grid grid-cols-12 items-end gap-2">
           <label className="col-span-12 text-xs sm:col-span-5">{i === 0 && "Item"}
