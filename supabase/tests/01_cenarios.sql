@@ -241,3 +241,8 @@ select 'depois: modulos claro=' || (select sum(quantidade) from saldo where loca
 \echo '--- mesmo chip sem descartar (deve falhar)'
 select trocar_chip(jsonb_build_object('local_id',:nl3,'produto_id',:fm3,'quantidade',1,'de','claro','para','claro')) is not null;
 \set ON_ERROR_STOP on
+\echo '--- 13. Arqia: entrada de chip Arqia avulso e instalação em módulo sem chip'
+select (select id from produto where nome='Chip Arqia M2M') as cha \gset
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',:nl3,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cha,'quantidade',2)))) is not null;
+select trocar_chip(jsonb_build_object('local_id',:nl3,'produto_id',:fm3,'quantidade',2,'de','novo','para','arqia')) is not null;
+select 'arqia: modulos=' || (select sum(quantidade) from saldo where local_id=:nl3 and produto_id=:fm3 and condicao='arqia') || ' chip avulso Arqia=' || (select coalesce(sum(quantidade),0) from saldo where local_id=:nl3 and produto_id=:cha);

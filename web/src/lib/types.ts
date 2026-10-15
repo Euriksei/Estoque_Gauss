@@ -18,13 +18,13 @@ export type ItemForm = {
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";
   sentido?: "mais" | "menos"; // só no ajuste de inventário
-  chip?: string; // chip do módulo: novo (sem chip), claro, vivo, arquia_claro ou arquia_vivo
+  chip?: string; // chip do módulo: novo (sem chip), claro, vivo ou arqia
   chicote?: boolean; // com o chicote do módulo (padrão: sim)
   chicoteQtd?: number; // quantidade de chicotes, se editada
 };
 
 // Chips dos módulos de telemetria. "novo" é o valor guardado no banco para módulo sem chip.
-export const CHIPS: Record<string, string> = { novo: "Sem chip", claro: "Claro", vivo: "Vivo", arquia_claro: "Arquia Claro", arquia_vivo: "Arquia Vivo" };
+export const CHIPS: Record<string, string> = { novo: "Sem chip", claro: "Claro", vivo: "Vivo", arqia: "Arqia" };
 // Nome do item para mostrar: módulos com chip ganham o chip entre parênteses.
 export const nomeItem = (nome: string | undefined | null, usaChip: boolean | undefined, chip: string | null | undefined) =>
   `${nome ?? ""}${usaChip ? ` (${CHIPS[chip ?? "novo"] ?? chip})` : ""}`;

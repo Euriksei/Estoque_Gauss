@@ -1,10 +1,9 @@
--- Atualização: chips dos módulos de telemetria (Claro, Vivo, Arquia Claro, Arquia Vivo), instalar/trocar/descartar chip.
+-- Atualização: chips dos módulos de telemetria (Claro, Vivo, Arqia), instalar/trocar/descartar chip.
 -- Rode UMA vez no SQL Editor do Supabase, em um banco que já tem o banco_completo.sql anterior.
 -- (Quem criar o banco do zero com o banco_completo.sql atual não precisa deste arquivo.)
 alter type condicao_item add value if not exists 'claro';
 alter type condicao_item add value if not exists 'vivo';
-alter type condicao_item add value if not exists 'arquia_claro';
-alter type condicao_item add value if not exists 'arquia_vivo';
+alter type condicao_item add value if not exists 'arqia';
 alter type tipo_movimento add value if not exists 'TROCA_CHIP';
 alter table produto add column if not exists usa_chip boolean not null default false;
 alter table produto add column if not exists chip_tipo text;
@@ -16,7 +15,7 @@ alter table produto add column if not exists chip_tipo text;
 
 create or replace function public.fn_rotulo_chip(c text) returns text language sql immutable as $$
   select case c when 'novo' then 'sem chip' when 'claro' then 'Claro' when 'vivo' then 'Vivo'
-                when 'arquia_claro' then 'Arquia Claro' when 'arquia_vivo' then 'Arquia Vivo' else c end
+                when 'arqia' then 'Arqia' else c end
 $$;
 
 create or replace view efeito_estoque with (security_invoker = true) as
@@ -66,7 +65,7 @@ begin
     -- só módulos com chip guardam o chip; os demais itens ficam sempre em 'novo'
     v_chip := case when exists (select 1 from produto where id = v_pid and usa_chip)
                    then coalesce(nullif(it->>'condicao',''), 'novo') else 'novo' end;
-    if v_chip not in ('novo','claro','vivo','arquia_claro','arquia_vivo') then raise exception 'Chip inválido: %', v_chip; end if;
+    if v_chip not in ('novo','claro','vivo','arqia') then raise exception 'Chip inválido: %', v_chip; end if;
     insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade, reservado_unidade_id,
                                    reservar_para_unidade_id)
     values (p_mov, v_pid, v_chip::condicao_item, (it->>'quantidade')::int,
@@ -75,7 +74,7 @@ begin
   end loop;
 end $$;
 
--- Trocar chip: converte módulos de "de" para "para" (sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo).
+-- Trocar chip: converte módulos de "de" para "para" (sem chip, Claro, Vivo, Arqia).
 -- Instalar chip avulso baixa o chip avulso; o chip retirado volta ao estoque avulso ou é descartado.
 -- p: {local_id, produto_id, quantidade, de, para, chip_retirado ('estoque'|'descartar'), observacao, data}
 create or replace function public.trocar_chip(p jsonb) returns bigint
@@ -95,7 +94,7 @@ begin
   end if;
   if not exists (select 1 from produto where id = v_prod and usa_chip) then raise exception 'Este item não usa chip'; end if;
   if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
-  if v_de not in ('novo','claro','vivo','arquia_claro','arquia_vivo') or v_para not in ('novo','claro','vivo','arquia_claro','arquia_vivo') then
+  if v_de not in ('novo','claro','vivo','arqia') or v_para not in ('novo','claro','vivo','arqia') then
     raise exception 'Chip inválido';
   end if;
   -- Mesmo chip de antes só faz sentido para substituir um chip ruim: o antigo é descartado e sai outro avulso.
@@ -161,11 +160,5 @@ update produto set usa_chip = true
    and categoria_id = (select id from categoria where nome = 'Rastreamento e telemetria');
 update produto set chip_tipo = 'claro' where nome = 'Chip Claro M2M';
 update produto set chip_tipo = 'vivo'  where nome = 'Chip Vivo M2M';
-insert into produto (nome, categoria_id, fornecedor_id, prazo_medio_dias, chip_tipo)
-select v.nome, (select id from categoria where nome = 'Comunicação e conectividade'),
-       (select id from fornecedor where nome = 'Securitek'), 30, v.tipo
-  from (values ('Chip Arqia Claro M2M','arquia_claro'), ('Chip Arqia Vivo M2M','arquia_vivo')) as v(nome, tipo)
-on conflict (nome) do nothing;
-update produto set chip_tipo = 'arquia_claro' where nome = 'Chip Arqia Claro M2M';
-update produto set chip_tipo = 'arquia_vivo'  where nome = 'Chip Arqia Vivo M2M';
+update produto set chip_tipo = 'arqia'  where nome = 'Chip Arqia M2M';
 

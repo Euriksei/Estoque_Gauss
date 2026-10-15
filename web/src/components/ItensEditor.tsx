@@ -13,7 +13,7 @@ type Props = {
   permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
   // "sim": cada módulo que tem chicote ganha a caixa "Com chicote" (marcada por padrão), por linha.
   chicote?: "sim" | "nenhum";
-  // "sim": cada módulo de telemetria ganha a escolha do chip (sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo).
+  // "sim": cada módulo de telemetria ganha a escolha do chip (sem chip, Claro, Vivo, Arqia).
   chip?: "sim" | "nenhum";
 };
 
