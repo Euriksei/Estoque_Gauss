@@ -50,7 +50,7 @@ export function SolicitacaoForm({ produtos, associados, unidades, locais = [], t
           </label>
         </div>
       )}
-      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="sim" />
+      <ItensEditor itens={itens} onChange={setItens} produtos={produtos} associados={associados} unidades={unidades} reserva="reservar" chicote="sim" chip="nenhum" />
       <label className="block text-sm">Link do chamado no Jira (opcional)
         <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
       </label>

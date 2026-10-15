@@ -12,6 +12,7 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 - **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva (a saída é registrada por administrador ou operador).
 - **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
 - **Chicote junto com o módulo** (todos os rastreadores Ruptela, GalileoSky e Teltonika): cada linha de módulo tem a sua caixa "Com chicote", marcada por padrão, na entrada e na saída. Desmarque quando for só o módulo. Dá para misturar no mesmo registro (por exemplo, 6 FMC 650 com chicote e 2 FMC 150 sem). A quantidade de chicotes acompanha a do módulo e pode ser editada.
+- **Chip dos módulos de telemetria**: todo módulo Ruptela, Galileosky ou Teltonika vem com chip (Claro, Vivo, Arquia Claro ou Arquia Vivo) ou sem chip, e o estoque é separado por isso. É possível pegar chips avulsos para instalar em módulos sem chip, trocar de operadora e descartar o chip de um módulo que não comunicou.
 - **Quantidades** nunca aceitam negativo: no ajuste de inventário escolha **Aumentar** ou **Reduzir**.
 - **Estoque e Cadastros**: a tela Estoque mostra a categoria e filtra por local, tipo de estoque, categoria e busca; em Cadastros, a lista de itens também tem busca e filtro por categoria.
 - **Busca nos seletores**: item e cliente/unidade ficam em ordem alfabética e filtram enquanto você digita.
@@ -59,6 +60,7 @@ Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e 
 | Transferências | lista de envios em andamento e concluídos; botão **Nova transferência** | todos (técnico vê só o que é para ele; criar: administrador e operador) |
 | Solicitações | pedidos pendentes, em produção e concluídos; botão **Nova solicitação** | todos (técnico vê só os dele; criar: todos, menos Consulta) |
 | Dedicados | onde está cada item dedicado e como movimentá-lo | todos, menos o técnico |
+| Chips | instalar, trocar e descartar chip dos módulos, e saldo por chip | administrador e operador |
 | Histórico | todas as movimentações; estorno (administrador) | todos |
 | Cadastros | itens, clientes, técnicos e estoque mínimo | administrador |
 | Usuários | liberar pessoas, perfil e estoques do operador | administrador |
@@ -71,6 +73,7 @@ Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e 
 4. **Transferências**: a tela abre com as transferências em andamento e as concluídas; o botão **Nova transferência** abre o formulário. No formulário, escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
 5. **Solicitações**: a tela mostra as pendentes, as em produção e as concluídas; o botão **Nova solicitação** abre o formulário. O técnico pede só para o próprio estoque, saindo do estoque base dele. Cada item do pedido pode ser pedido já dedicado a um cliente ("Dedicado para"). Administrador, operador e agendamento escolhem de onde e para onde. Só administrador e operador (da origem) tratam o pedido: **Aceitar** leva para **Em produção**, com **prazo de 1 dia** para finalizar (a tela avisa se atrasar); depois **Atender (enviar)** gera a transferência, e o destino confirma o recebimento em Transferências. Depois de aceito, só administrador e operador cancelam.
 6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega, e movimente-o: **Transferir** para outro estoque ou **Enviar ao cliente**.
+7. **Chips**: os módulos de telemetria (Ruptela, Galileosky, Teltonika) têm o saldo separado por chip: sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo. Ao registrar entrada, saída ou transferência de um módulo, escolha o chip. Os chips avulsos são itens normais (entre por compra em Registrar). Na tela **Chips**, escolha o estoque, o módulo, a quantidade, o chip que ele tem hoje e o que vai ficar: instalar um chip em módulo sem chip baixa 1 chip avulso; trocar de operadora devolve o chip antigo ao avulso; e se o módulo **não comunicou no teste**, retire o chip e escolha **Descartar** (com o motivo) para ele não voltar ao estoque.
 7. **Histórico**: veja as movimentações, quem fez e quando. O administrador pode estornar uma movimentação informando o motivo.
 
 ### Para o administrador
@@ -98,7 +101,7 @@ Você precisa de Node.js 18 ou mais novo, Git e um projeto no [Supabase](https:/
 
 ### 1. Banco de dados
 
-No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens. **Se o seu banco já existe** (criado com uma versão anterior), rode em vez disso só o conteúdo de `supabase/atualizar_solicitacao_producao.sql`, uma vez.
+No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens. **Se o seu banco já existe**, rode em vez disso os arquivos de atualização que ainda não rodou, **nesta ordem**: `supabase/atualizar_solicitacao_producao.sql` e depois `supabase/atualizar_chips.sql` (cada um uma vez; quem cria o banco do zero com o `banco_completo.sql` atual não precisa deles).
 
 Quem já tinha rodado as migrações antigas **não deve rodar este arquivo de novo**: o banco dele já está completo. Mudanças futuras virão como arquivos novos de atualização.
 

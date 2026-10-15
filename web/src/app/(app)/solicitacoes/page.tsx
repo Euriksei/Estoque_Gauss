@@ -24,6 +24,7 @@ export default async function Solicitacoes() {
   const sols = ((data ?? []) as unknown as Sol[]).filter((s) => usuario.perfil !== "tecnico" || s.tecnico_id === usuario.id);
   const operador = usuario.perfil === "admin" || usuario.perfil === "operador";
   const operaveisIds = new Set(operaveis.map((l) => l.id));
+  const prods = new Map(cat.produtos.map((p) => [p.id, p]));
   const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
   const nomeLocal = new Map(todos.map((l) => [l.id, l.nome]));
   const podeSolicitar = usuario.perfil !== "consulta";
@@ -61,7 +62,7 @@ export default async function Solicitacoes() {
                 <div className="mt-2"><Acao fn="aceitar_solicitacao" args={{ p_id: s.id }} texto="Aceitar (iniciar produção)" /></div>
               )}
               {s.status === "em_producao" && operador && s.origem_id != null && operaveisIds.has(s.origem_id) && (
-                <AtenderSolicitacao id={s.id} />
+                <AtenderSolicitacao id={s.id} modulos={s.solicitacao_item.filter((i) => prods.get(i.produto_id)?.usa_chip).map((i) => ({ chave: `${i.produto_id}|${i.reservar_para_unidade_id ?? ""}`, nome: `${prods.get(i.produto_id)?.nome}${i.reservar_para_unidade_id ? " (dedicado)" : ""}` }))} />
               )}
               {(s.status === "aberta" ? (s.tecnico_id === usuario.id || operador) : s.status === "em_producao" && operador) && (
                 <div className="mt-2"><Acao fn="cancelar_solicitacao" args={{ p_id: s.id }} texto="Cancelar solicitação" secundario /></div>

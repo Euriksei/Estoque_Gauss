@@ -175,3 +175,31 @@ select cancelar_solicitacao(:sol5);
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
 select atender_solicitacao(:sol5, '{"modo_envio":"tecnico"}'::jsonb) is not null;
 select 'status final=' || status::text from solicitacao where id=:sol5;
+
+\echo '--- 10. Chips: módulo com chip, instalar chip avulso, trocar de operadora, descartar chip ruim'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select (select id from local where nome='Nova Lima') as nl2, (select id from produto where nome='FMC 150') as fm, (select id from produto where nome='Chip Claro M2M') as chc, (select id from produto where nome='Chip Vivo M2M') as chv, (select id from produto where nome='Buzzer') as bz \gset
+select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',:nl2,'itens',jsonb_build_array(jsonb_build_object('produto_id',:fm,'quantidade',10,'condicao','novo'),jsonb_build_object('produto_id',:fm,'quantidade',4,'condicao','claro'),jsonb_build_object('produto_id',:chc,'quantidade',6),jsonb_build_object('produto_id',:chv,'quantidade',3)))) is not null;
+select 'FMC150 sem chip=' || coalesce((select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='novo' and reservado_unidade_id is null),0) || ' claro=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='claro');
+\echo '--- instalar Claro em 3 módulos sem chip (chip avulso Claro 6 -> 3)'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',3,'de','novo','para','claro')) is not null;
+select 'sem chip=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='novo' and reservado_unidade_id is null) || ' claro=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='claro') || ' chipClaro=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:chc);
+\echo '--- trocar Claro por Vivo em 2 módulos: Claro volta ao avulso (+2), Vivo avulso -2'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',2,'de','claro','para','vivo')) is not null;
+select 'claro=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='claro') || ' vivo=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='vivo') || ' chipClaro=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:chc) || ' chipVivo=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:chv);
+\echo '--- módulo não comunicou: tira o chip Vivo e descarta (módulo volta a sem chip, chip avulso não volta)'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',1,'de','vivo','para','novo','chip_retirado','descartar','observacao','não comunicou no teste')) is not null;
+select 'vivo=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:fm and condicao='vivo') || ' chipVivo=' || (select sum(quantidade) from saldo where local_id=:nl2 and produto_id=:chv);
+\set ON_ERROR_STOP off
+\echo '--- descartar sem motivo (deve falhar)'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',1,'de','claro','para','novo','chip_retirado','descartar')) is not null;
+\echo '--- instalar chip sem chip avulso suficiente (deve falhar): 5 Vivo, só restam 1'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',5,'de','novo','para','vivo')) is not null;
+\echo '--- trocar chip em item que não usa chip (deve falhar)'
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:bz,'quantidade',1,'de','novo','para','claro')) is not null;
+\echo '--- saída de módulo com chip que não existe em estoque (deve falhar): 9 Vivo'
+select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',:nl2,'itens',jsonb_build_array(jsonb_build_object('produto_id',:fm,'quantidade',9,'condicao','vivo')))) is not null;
+\echo '--- técnico não troca chip (deve falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',1,'de','novo','para','claro')) is not null;
+\set ON_ERROR_STOP on

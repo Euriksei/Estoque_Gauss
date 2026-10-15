@@ -3,14 +3,14 @@ import { getCatalogo, getLocais, getUsuario } from "@/lib/dados";
 import { Colapsavel } from "@/components/Colapsavel";
 import { Acao } from "@/components/Acao";
 import { TransferenciaForm } from "@/components/TransferenciaForm";
-import { STATUS, nomeUnidade } from "@/lib/types";
+import { STATUS, nomeItem, nomeUnidade } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Mov = {
   id: number; status: string; data: string; modo_envio: string | null; codigo_rastreio: string | null; prazo_chegada: string | null;
   local_origem_id: number; local_destino_id: number; observacao: string | null; recebido_em: string | null;
-  movimentacao_item: { quantidade: number; reservar_para_unidade_id: number | null; reservado_unidade_id: number | null; produto: { nome: string } | null }[];
+  movimentacao_item: { quantidade: number; condicao: string; reservar_para_unidade_id: number | null; reservado_unidade_id: number | null; produto: { nome: string; usa_chip: boolean } | null }[];
 };
 
 export default async function Transferencias() {
@@ -19,7 +19,7 @@ export default async function Transferencias() {
   const [{ todos, operaveis }, cat, { data }] = await Promise.all([
     getLocais(usuario), getCatalogo(),
     sb.from("movimentacao")
-      .select("id,status,data,modo_envio,codigo_rastreio,prazo_chegada,local_origem_id,local_destino_id,observacao,recebido_em, movimentacao_item(quantidade,reservar_para_unidade_id,reservado_unidade_id, produto(nome))")
+      .select("id,status,data,modo_envio,codigo_rastreio,prazo_chegada,local_origem_id,local_destino_id,observacao,recebido_em, movimentacao_item(quantidade,condicao,reservar_para_unidade_id,reservado_unidade_id, produto(nome,usa_chip))")
       .eq("tipo", "TRANSFERENCIA").order("id", { ascending: false }).limit(100),
   ]);
   const meusLocais = new Set(operaveis.map((l) => l.id));
@@ -57,13 +57,13 @@ export default async function Transferencias() {
             </div>
             <ul className="mt-2 list-disc pl-5">
               {m.movimentacao_item.map((i, k) => (
-                <li key={k}>{i.quantidade}× {i.produto?.nome}{(i.reservar_para_unidade_id || i.reservado_unidade_id) && ` · dedicado: ${nomeUn.get((i.reservar_para_unidade_id ?? i.reservado_unidade_id)!)}`}</li>
+                <li key={k}>{i.quantidade}× {nomeItem(i.produto?.nome, i.produto?.usa_chip, i.condicao)}{(i.reservar_para_unidade_id || i.reservado_unidade_id) && ` · dedicado: ${nomeUn.get((i.reservar_para_unidade_id ?? i.reservado_unidade_id)!)}`}</li>
               ))}
             </ul>
             {m.observacao && <p className="mt-1 text-slate-600">{m.observacao}</p>}
             {m.status === "em_transito" && (
               <div className="mt-2 flex gap-2">
-                {podeConfirmar(m) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" confirmar={`Confirma que recebeu:\n${m.movimentacao_item.map((i) => `${i.quantidade}× ${i.produto?.nome}`).join("\n")}`} />}
+                {podeConfirmar(m) && <Acao fn="confirmar_recebimento" args={{ p_id: m.id }} texto="Confirmar recebimento" confirmar={`Confirma que recebeu:\n${m.movimentacao_item.map((i) => `${i.quantidade}× ${nomeItem(i.produto?.nome, i.produto?.usa_chip, i.condicao)}`).join("\n")}`} />}
                 {usuario.perfil !== "tecnico" && meus.has(m.local_origem_id) && <Acao fn="cancelar_transferencia" args={{ p_id: m.id }} texto="Cancelar envio" secundario pedirMotivo />}
               </div>
             )}

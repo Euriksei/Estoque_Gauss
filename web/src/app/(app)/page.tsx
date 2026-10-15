@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getUsuario, getCatalogo, getLocais, nomeUnidade } from "@/lib/dados";
+import { nomeItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Linha = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number };
+type Linha = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {
   const usuario = (await getUsuario())!;
@@ -90,7 +91,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
               <tr key={i}>
                 <td className="td">{nomeLocal.get(s.local_id)}</td>
                 <td className="td">{nomeProduto.get(s.produto_id)?.categoria?.nome}</td>
-                <td className="td">{nomeProduto.get(s.produto_id)?.nome}</td>
+                <td className="td">{nomeItem(nomeProduto.get(s.produto_id)?.nome, nomeProduto.get(s.produto_id)?.usa_chip, s.condicao)}</td>
                 <td className="td">{s.reservado_unidade_id ? `Dedicado: ${nomeUn.get(s.reservado_unidade_id)}` : "Livre"}</td>
                 <td className="td text-right font-medium">{s.quantidade}</td>
               </tr>

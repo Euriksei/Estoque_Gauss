@@ -5,12 +5,12 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { MODOS, MODOS_COM_RASTREIO, VINCULOS, type Local, type Tecnico } from "@/lib/types";
 
 type Props = {
-  unidadeId: number; produtoId: number; localId: number; max: number;
+  unidadeId: number; produtoId: number; chip: string; localId: number; max: number;
   destinos: Local[]; tecnicos: Tecnico[]; ehTecnico: boolean; podeTransferir: boolean;
 };
 
 // Único lugar onde um item dedicado é movimentado: transferir para outro estoque ou enviar ao cliente.
-export function DedicadoAcoes({ unidadeId, produtoId, localId, max, destinos, tecnicos, ehTecnico, podeTransferir }: Props) {
+export function DedicadoAcoes({ unidadeId, produtoId, chip, localId, max, destinos, tecnicos, ehTecnico, podeTransferir }: Props) {
   const router = useRouter();
   const [aberto, setAberto] = useState<"" | "transferir" | "cliente">("");
   const [qtd, setQtd] = useState(max);
@@ -24,7 +24,7 @@ export function DedicadoAcoes({ unidadeId, produtoId, localId, max, destinos, te
   const [msg, setMsg] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
-  const item = [{ produto_id: produtoId, quantidade: qtd, reservado_unidade_id: unidadeId }];
+  const item = [{ produto_id: produtoId, quantidade: qtd, reservado_unidade_id: unidadeId, condicao: chip }];
   const hoje = new Date().toISOString().slice(0, 10);
 
   async function enviar(e: React.FormEvent) {

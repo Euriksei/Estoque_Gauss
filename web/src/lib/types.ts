@@ -7,7 +7,7 @@ export type Local = {
   id: number; nome: string; tipo: "estoque" | "tecnico"; tecnico_id: number | null; base_id: number | null;
   tecnico?: { nome: string; vinculo: Vinculo; usuario_id: string | null } | null;
 };
-export type Produto = { id: number; nome: string; categoria_id: number | null; fabricante: string | null; estoque_minimo: number; categoria?: { nome: string } | null };
+export type Produto = { id: number; nome: string; categoria_id: number | null; fabricante: string | null; estoque_minimo: number; usa_chip?: boolean; chip_tipo?: string | null; categoria?: { nome: string } | null };
 export type Unidade = { id: number; nome: string; cliente_id: number; cliente?: { nome: string } | null };
 export const nomeUnidade = (u: Unidade) => `${u.cliente?.nome ?? ""} - ${u.nome}`;
 export type Associado = { produto_id: number; associado_id: number; quantidade: number };
@@ -18,11 +18,19 @@ export type ItemForm = {
   reservado_unidade_id?: number | "";
   reservar_para_unidade_id?: number | "";
   sentido?: "mais" | "menos"; // só no ajuste de inventário
+  chip?: string; // chip do módulo: novo (sem chip), claro, vivo, arquia_claro ou arquia_vivo
   chicote?: boolean; // com o chicote do módulo (padrão: sim)
   chicoteQtd?: number; // quantidade de chicotes, se editada
 };
 
+// Chips dos módulos de telemetria. "novo" é o valor guardado no banco para módulo sem chip.
+export const CHIPS: Record<string, string> = { novo: "Sem chip", claro: "Claro", vivo: "Vivo", arquia_claro: "Arquia Claro", arquia_vivo: "Arquia Vivo" };
+// Nome do item para mostrar: módulos com chip ganham o chip entre parênteses.
+export const nomeItem = (nome: string | undefined | null, usaChip: boolean | undefined, chip: string | null | undefined) =>
+  `${nome ?? ""}${usaChip ? ` (${CHIPS[chip ?? "novo"] ?? chip})` : ""}`;
+
 export const TIPOS: Record<string, string> = {
+  TROCA_CHIP: "Troca de chip",
   ENTRADA_COMPRA: "Entrada por compra",
   DEVOLUCAO_CLIENTE: "Devolução de cliente",
   SAIDA_CLIENTE: "Saída para cliente",

@@ -65,7 +65,7 @@ for i in $(seq 1 60); do curl -s -o /dev/null "$APP_URL/login" && break; sleep 1
 echo "== testes"
 cd "$AQUI"
 FALHAS=0
-for t in 1_varredura 2_registrar 3_tecnico_e_solicitacoes 4_dedicados_filtros_perfis 5_extras; do
+for t in 1_varredura 2_registrar 3_tecnico_e_solicitacoes 4_dedicados_filtros_perfis 5_extras 6_chips; do
   echo; echo "### $t"
   node "$t.js" || FALHAS=$((FALHAS+1))
 done

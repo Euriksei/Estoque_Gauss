@@ -13,6 +13,7 @@ const MENU: { href: string; nome: string; perfis: Perfil[] }[] = [
   { href: "/solicitacoes", nome: "Solicitações", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
   { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "consulta", "agendamento"] },
   { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/chips", nome: "Chips", perfis: ["admin", "operador"] },
   { href: "/cadastros", nome: "Cadastros", perfis: ["admin"] },
   { href: "/usuarios", nome: "Usuários", perfis: ["admin"] },
 ];
