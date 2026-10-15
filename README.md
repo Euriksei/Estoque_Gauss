@@ -8,10 +8,11 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 - **Movimentações**: entrada por compra, devolução de cliente, saída para cliente, consumo interno ou teste, descarte e ajuste de inventário.
 - **Saída para estoque técnico**: em Registrar, escolha "Saída para estoque técnico" e o técnico. O saldo sai do seu estoque na hora, mas só entra no estoque do técnico quando ele confirma o recebimento (em Transferências). Até lá, o item aparece como "em trânsito". Técnico sem login não confirma sozinho: o operador do estoque de origem (ou da base do técnico) ou um administrador confirma por ele.
 - **Transferências em duas etapas**: quem envia informa data, meio de envio, código de rastreio e prazo de chegada, e o saldo sai do estoque dele na hora. O destino acompanha o envio e só recebe o saldo quando confirma o recebimento.
-- **Técnicos (CLT e PJ)**: cada técnico é um cadastro com vínculo CLT ou PJ e tem o próprio estoque. Se ele usa o sistema, vê só o próprio estoque, pede material, dá baixa do que usou no cliente e confirma o que recebe. Técnicos sem login também podem ser cadastrados, para aparecerem como quem leva o material ao cliente.
-- **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva; quando o próprio técnico dá a baixa, ele já fica registrado como quem levou.
+- **Técnicos (CLT e PJ)**: cada técnico é um cadastro com vínculo CLT ou PJ e tem o próprio estoque. Se ele usa o sistema, acessa só **Transferências** (o que foi enviado para ele, com confirmação do recebimento) e **Solicitações** (pede material e acompanha os pedidos dele). Técnicos sem login também podem ser cadastrados, para aparecerem como quem leva o material ao cliente.
+- **Modo de envio na saída para cliente**: correios, sedex, retirada, transportadora ou técnico. Quando o envio é por técnico, escolhe-se qual técnico leva (a saída é registrada por administrador ou operador).
 - **Itens dedicados a um cliente**: o item fica reservado para uma unidade de cliente, fora do estoque livre, com acompanhamento completo (guardado em qual estoque ou carro, em trânsito, entregue) e histórico. Ele **nasce** em Registrar (entrada por compra ou ajuste de inventário, campo "Dedicado para") ou numa transferência. Depois de dedicado, só se movimenta pela tela **Dedicados**: transferir para outro estoque ou enviar ao cliente (com modo de envio e técnico, como nas demais saídas).
 - **Chicote junto com o módulo** (todos os rastreadores Ruptela, GalileoSky e Teltonika): cada linha de módulo tem a sua caixa "Com chicote", marcada por padrão, na entrada e na saída. Desmarque quando for só o módulo. Dá para misturar no mesmo registro (por exemplo, 6 FMC 650 com chicote e 2 FMC 150 sem). A quantidade de chicotes acompanha a do módulo e pode ser editada.
+- **Chip dos módulos de telemetria**: todo módulo Ruptela, Galileosky ou Teltonika vem com chip (Claro, Vivo, Arquia Claro ou Arquia Vivo) ou sem chip, e o estoque é separado por isso. É possível pegar chips avulsos para instalar em módulos sem chip, trocar de operadora e descartar o chip de um módulo que não comunicou.
 - **Quantidades** nunca aceitam negativo: no ajuste de inventário escolha **Aumentar** ou **Reduzir**.
 - **Estoque e Cadastros**: a tela Estoque mostra a categoria e filtra por local, tipo de estoque, categoria e busca; em Cadastros, a lista de itens também tem busca e filtro por categoria.
 - **Busca nos seletores**: item e cliente/unidade ficam em ordem alfabética e filtram enquanto você digita.
@@ -22,12 +23,12 @@ Sistema web para controlar a **entrada e a saída de equipamentos e insumos** da
 
 | Ação | Administrador | Operador de estoque | Técnico | Consulta | Agendamento |
 |---|:-:|:-:|:-:|:-:|:-:|
-| Ver saldo e histórico | todos os locais | só os estoques liberados para ele | só o próprio estoque | todos os locais | todos os locais |
-| Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | só saída para cliente, do próprio estoque | | |
+| Ver saldo e histórico | todos os locais | só os estoques liberados para ele | não vê estoque nem histórico (só as transferências e solicitações dele) | todos os locais | todos os locais |
+| Registrar entrada, saída, devolução, consumo, descarte, ajuste | ✓ | ✓ (nos seus estoques) | | | |
 | Criar transferência (enviar) | ✓ | ✓ (do seu estoque) | | | |
-| Confirmar recebimento | ✓ | ✓ (no seu estoque; no estoque de técnico que ele enviou ou da sua base) | ✓ (no próprio estoque) | | |
-| Fazer solicitação | ✓ (escolhe de onde e para onde) | ✓ (escolhe de onde e para onde) | ✓ (só para o próprio estoque, saindo do estoque base dele) | | ✓ (escolhe de onde e para onde) |
-| Atender solicitação | ✓ | ✓ (da origem que ele opera) | | | |
+| Confirmar recebimento | ✓ | ✓ (no seu estoque; no estoque de técnico que ele enviou ou da sua base) | ✓ (só o que foi enviado para ele) | | |
+| Fazer solicitação | ✓ (estoque → técnico ou estoque → estoque, de qualquer origem) | ✓ (estoque → técnico ou estoque → estoque, de qualquer origem) | ✓ (só para o próprio estoque, saindo do estoque base dele) | | ✓ (só do estoque dele para um técnico, informando o cliente) |
+| Aceitar e atender solicitação | ✓ (qualquer origem) | ✓ (só quando a origem é um estoque que ele opera) | | | |
 | Cadastros (itens, clientes, técnicos, mínimos) e usuários | ✓ | | | | |
 | Estornar movimentação | ✓ | | | | |
 
@@ -36,10 +37,10 @@ Essas regras são garantidas no banco de dados, não só nas telas.
 ### O que cada acesso faz, em palavras
 
 - **Administrador**: tudo. Vê todos os estoques, registra qualquer movimentação, cria e confirma transferências, atende solicitações, estorna, cadastra itens, clientes, técnicos e usuários, e libera ou bloqueia o acesso das pessoas.
-- **Operador de estoque**: trabalha nos estoques que o administrador liberou para ele (por exemplo, só Nova Lima). Neles registra entrada, saída, devolução, consumo, descarte e ajuste, envia transferências e atende solicitações que saem do estoque dele. Confirma recebimentos no estoque dele e também no estoque de um técnico quando foi ele quem enviou ou quando o técnico pertence à base dele (útil para técnico sem login). Não estorna nem mexe em cadastros.
-- **Técnico**: vê só o próprio estoque (o carro). Dá baixa de saída para cliente (ele fica registrado como o técnico que levou), confirma o que chega ao carro dele, envia ao cliente os itens dedicados que estão com ele e pede material. O pedido sempre é para o próprio estoque e sempre sai do **estoque base** dele; ele não escolhe a origem.
+- **Operador de estoque**: trabalha nos estoques que o administrador liberou para ele (por exemplo, só Nova Lima). Neles registra entrada, saída, devolução, consumo, descarte e ajuste, envia transferências e dá andamento (aceita e atende) às solicitações **cujo estoque de origem é dele**. Ele pode pedir de outro estoque (por exemplo, Nova Lima pedindo do SBC), mas quem responde é o operador do SBC. Confirma recebimentos no estoque dele e também no estoque de um técnico quando foi ele quem enviou ou quando o técnico pertence à base dele (útil para técnico sem login). Não estorna nem mexe em cadastros.
+- **Técnico**: só vê duas telas, **Transferências** e **Solicitações**. Em Transferências aparece apenas o que foi enviado para o estoque dele; ao chegar, ele confere os itens e quantidades e confirma o recebimento. Em Solicitações ele pede material de acordo com a demanda e vê só os pedidos dele. O pedido sempre é para o próprio estoque e sempre sai do **estoque base** dele. Ele não vê o Estoque geral, Registrar, Dedicados nem o Histórico.
 - **Consulta**: só olha. Vê todos os estoques, transferências, solicitações, dedicados e histórico, sem nenhum botão de ação.
-- **Agendamento**: igual à Consulta, mais a possibilidade de **fazer solicitações de transferência** (escolhendo de onde sai e para onde vai). Não registra movimentação, não envia nem confirma transferência e não atende pedidos.
+- **Agendamento**: igual à Consulta, mais **solicitações de saída para cliente**: do estoque fixo dele (definido em Usuários) para um **técnico**, informando o **cliente**. Cada item sai do estoque livre ou do estoque dedicado de um cliente; se o dedicado for de outro cliente, o sistema alerta e pede confirmação. Não registra movimentação, não cria nem confirma transferência (só vê o andamento) e não dá andamento a pedidos.
 
 Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e marcar "Ativo" em Usuários.
 
@@ -54,11 +55,12 @@ Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e 
 
 | Tela | Para que serve | Quem vê |
 |---|---|---|
-| Estoque | saldo por local e item, com categoria, filtros e alerta de mínimo | todos (técnico só o dele) |
-| Registrar | entradas e saídas | administrador, operador, técnico (só baixa de cliente) |
-| Transferências | lista de envios em andamento e concluídos; botão **Nova transferência** | todos (criar: administrador e operador) |
-| Solicitações | pedidos pendentes e concluídos; botão **Nova solicitação** | todos (criar: todos, menos Consulta) |
-| Dedicados | onde está cada item dedicado e como movimentá-lo | todos |
+| Estoque | saldo por local e item, com categoria, filtros e alerta de mínimo | todos, menos o técnico |
+| Registrar | entradas e saídas | administrador e operador |
+| Transferências | lista de envios em andamento e concluídos; botão **Nova transferência** | todos (técnico vê só o que é para ele; criar: administrador e operador) |
+| Solicitações | pedidos pendentes, em produção e concluídos; botão **Nova solicitação** | todos (técnico vê só os dele; criar: todos, menos Consulta) |
+| Dedicados | onde está cada item dedicado e como movimentá-lo | todos, menos o técnico |
+| Chips | instalar, trocar e descartar chip dos módulos, e saldo por chip | administrador e operador |
 | Histórico | todas as movimentações; estorno (administrador) | todos |
 | Cadastros | itens, clientes, técnicos e estoque mínimo | administrador |
 | Usuários | liberar pessoas, perfil e estoques do operador | administrador |
@@ -69,13 +71,14 @@ Quem se cadastra entra **sem acesso** até um administrador escolher o perfil e 
 2. **Estoque**: veja o saldo por local, filtre por local, tipo de estoque ou categoria, ou busque um item. Itens abaixo do mínimo aparecem em destaque.
 3. **Registrar**: escolha o tipo, o local, a data e os itens. Os tipos são entrada por compra (fornecedor e NF), devolução de cliente, saída para cliente, saída para estoque técnico, consumo interno ou teste, descarte e ajuste de inventário (com justificativa). Item e cliente/unidade se escolhem digitando para buscar. Em saída e devolução, escolha o cliente/unidade e, se quiser, informe o link do chamado do Jira (opcional). Na **saída para cliente**, informe também o modo de envio (e o técnico que leva, se for por técnico). Para criar um item dedicado, escolha o cliente em "Dedicado para (opcional)" na entrada por compra ou no ajuste.
 4. **Transferências**: a tela abre com as transferências em andamento e as concluídas; o botão **Nova transferência** abre o formulário. No formulário, escolha de onde para onde, o meio de envio, o rastreio e o prazo. Para transformar estoque livre em dedicado, escolha o cliente em "Dedicado para". O destino confirma o recebimento na mesma tela.
-5. **Solicitações**: a tela mostra as pendentes e as concluídas; o botão **Nova solicitação** abre o formulário. O técnico pede só para o próprio estoque, saindo do estoque base dele. Cada item do pedido pode ser pedido já dedicado a um cliente ("Dedicado para"). Administrador, operador e agendamento escolhem de onde e para onde. Administrador e operador (da origem) atendem, e o envio segue como transferência; o destino confirma o recebimento em Transferências.
+5. **Solicitações**: a tela mostra as pendentes, as em produção e as concluídas; o botão **Nova solicitação** abre o formulário. **Técnico**: pede só para o próprio estoque, saindo do estoque base dele. **Agendamento**: do estoque dele para um técnico, com o cliente obrigatório. **Administrador e operador**: estoque → técnico (cliente opcional) ou estoque → estoque, de qualquer origem. Quando o destino é um técnico, cada item pode sair do estoque livre ou do dedicado de um cliente; se o dedicado for de **outro cliente**, aparece o alerta "um item de estoque dedicado está sendo direcionado a um cliente diferente" e é preciso confirmar. Entre estoques, o item pode ser pedido já dedicado a um cliente ("Dedicado para"). Só administrador e operador tratam o pedido, e o operador apenas quando a origem é um estoque dele (o administrador, em todos): **Aceitar** leva para **Em produção**, com **prazo de 1 dia** para finalizar (a tela avisa se atrasar); depois **Atender (enviar)** gera a transferência, e o destino confirma o recebimento em Transferências. Depois de aceito, só administrador e operador cancelam.
 6. **Dedicados**: acompanhe cada item reservado, do estoque até a entrega, e movimente-o: **Transferir** para outro estoque ou **Enviar ao cliente**.
+7. **Chips**: os módulos de telemetria (Ruptela, Galileosky, Teltonika) têm o saldo separado por chip: sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo. Ao registrar entrada, saída ou transferência de um módulo, escolha o chip. Os chips avulsos são itens normais (entre por compra em Registrar). Na tela **Chips**, escolha o estoque, o módulo, a quantidade, o chip que ele tem hoje e o que vai ficar: instalar um chip em módulo sem chip baixa 1 chip avulso; trocar de operadora devolve o chip antigo ao avulso; e se o módulo **não comunicou no teste**, retire o chip e escolha **Descartar** (com o motivo) para ele não voltar ao estoque.
 7. **Histórico**: veja as movimentações, quem fez e quando. O administrador pode estornar uma movimentação informando o motivo.
 
 ### Para o administrador
 
-- **Usuários**: quem se cadastra entra inativo. Escolha o perfil, marque "Ativo" e, para operador, marque os estoques que ele pode movimentar. Para os técnicos, veja Cadastros.
+- **Usuários**: quem se cadastra entra inativo. Escolha o perfil, marque "Ativo" e, para operador, marque os estoques que ele pode movimentar; para agendamento, escolha o estoque dele. Para os técnicos, veja Cadastros.
 - **Cadastros**: adicione clientes e unidades, **técnicos** (CLT ou PJ, com ou sem login, cada um com o seu estoque), itens e ajuste o estoque mínimo de cada item. Cada técnico precisa de um **estoque base** (SBC ou Nova Lima): é de lá que saem os pedidos dele. Defina em Cadastros, Técnicos (os técnicos já cadastrados precisam ter o base escolhido uma vez). Para um técnico acessar o sistema, ele cria a conta, você marca o perfil "Técnico" em Usuários e liga o login dele ao cadastro dele em Cadastros, Técnicos.
 - O **primeiro cadastro** do sistema vira administrador automaticamente.
 
@@ -98,7 +101,7 @@ Você precisa de Node.js 18 ou mais novo, Git e um projeto no [Supabase](https:/
 
 ### 1. Banco de dados
 
-No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens.
+No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens. **Se o seu banco já existe**, rode em vez disso os arquivos de atualização que ainda não rodou, **nesta ordem**: `supabase/atualizar_solicitacao_producao.sql`, `supabase/atualizar_chips.sql` e `supabase/atualizar_regras_solicitacao.sql` (cada um uma vez; quem cria o banco do zero com o `banco_completo.sql` atual não precisa deles).
 
 Quem já tinha rodado as migrações antigas **não deve rodar este arquivo de novo**: o banco dele já está completo. Mudanças futuras virão como arquivos novos de atualização.
 

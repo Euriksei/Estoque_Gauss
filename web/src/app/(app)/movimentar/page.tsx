@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
 import { MovimentarForm } from "@/components/MovimentarForm";
@@ -6,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Movimentar() {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   if (usuario.perfil === "consulta" || usuario.perfil === "agendamento") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
   const sb = supabaseServer();
   const [{ operaveis, todos }, cat, { data: forn }, tecnicos] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome"), getTecnicos()]);
@@ -15,7 +18,7 @@ export default async function Movimentar() {
     : ["SAIDA_CLIENTE", "SAIDA_TECNICO", "ENTRADA_COMPRA", "DEVOLUCAO_CLIENTE", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold">{usuario.perfil === "tecnico" ? "Dar baixa no cliente" : "Registrar entrada ou saída"}</h1>
+      <h1 className="text-xl font-bold text-marinho-900">{usuario.perfil === "tecnico" ? "Dar baixa no cliente" : "Registrar entrada ou saída"}</h1>
       {operaveis.length === 0
         ? <p className="text-sm">Você ainda não tem um estoque liberado. Fale com um administrador.</p>
         : <MovimentarForm tipos={tipos} locais={operaveis} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} fornecedores={forn ?? []}

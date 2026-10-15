@@ -1,12 +1,16 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getUsuario, getCatalogo, getLocais, nomeUnidade } from "@/lib/dados";
+import { nomeItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Linha = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number };
+type Linha = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {
   const usuario = (await getUsuario())!;
+  // O técnico só usa Transferências e Solicitações.
+  if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   const sb = supabaseServer();
   const [{ data }, { produtos, unidades }, { todos }] = await Promise.all([
     sb.from("saldo").select("*"),
@@ -44,7 +48,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">{usuario.perfil === "tecnico" ? "Meu estoque" : "Estoque"}</h1>
+      <h1 className="text-xl font-bold text-marinho-900">{usuario.perfil === "tecnico" ? "Meu estoque" : "Estoque"}</h1>
 
       {abaixo.length > 0 && (
         <div className="card border-amber-300 bg-amber-50 text-sm">
@@ -87,7 +91,7 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
               <tr key={i}>
                 <td className="td">{nomeLocal.get(s.local_id)}</td>
                 <td className="td">{nomeProduto.get(s.produto_id)?.categoria?.nome}</td>
-                <td className="td">{nomeProduto.get(s.produto_id)?.nome}</td>
+                <td className="td">{nomeItem(nomeProduto.get(s.produto_id)?.nome, nomeProduto.get(s.produto_id)?.usa_chip, s.condicao)}</td>
                 <td className="td">{s.reservado_unidade_id ? `Dedicado: ${nomeUn.get(s.reservado_unidade_id)}` : "Livre"}</td>
                 <td className="td text-right font-medium">{s.quantidade}</td>
               </tr>

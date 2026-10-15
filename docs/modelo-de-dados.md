@@ -30,7 +30,7 @@ São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galile
 
 - **Estoques fixos:** São Bernardo (SBC) e Nova Lima. A CSN UPV saiu por enquanto.
 - **Estoque do técnico:** cada técnico tem o próprio "estoque/carro", ligado ao estoque base dele (SBC ou Nova Lima). É um local como os outros, então a mesma lógica de saldo e transferência vale para ele.
-- Saldo sempre por **local + item** (a condição novo/usado foi retirada).
+- Saldo sempre por **local + item** (a condição novo/usado foi retirada). A coluna `condicao` agora guarda o **chip** dos módulos de telemetria (`produto.usa_chip`): `novo` = sem chip, ou `claro`, `vivo`, `arquia_claro`, `arquia_vivo`. Os demais itens ficam sempre em `novo`. Chips avulsos são produtos com `produto.chip_tipo`. A função `trocar_chip` (tipo de movimentação `TROCA_CHIP`) converte módulos entre chips e baixa/devolve/descarta os chips avulsos.
 
 ## 3. Níveis de acesso
 

@@ -22,7 +22,7 @@ export default async function Cadastros() {
   const clientes = c.data ?? [];
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">Cadastros</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Cadastros</h1>
       <section className="card space-y-3">
         <h2 className="font-medium">Clientes e unidades</h2>
         <NovoCliente />

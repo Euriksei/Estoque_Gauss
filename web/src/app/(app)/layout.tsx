@@ -4,14 +4,16 @@ import { getUsuario } from "@/lib/dados";
 import { supabaseServer } from "@/lib/supabase/server";
 import { PERFIS, type Perfil } from "@/lib/types";
 import { SairBotao } from "@/components/SairBotao";
+import { Menu } from "@/components/Menu";
 
 const MENU: { href: string; nome: string; perfis: Perfil[] }[] = [
-  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/movimentar", nome: "Registrar", perfis: ["admin", "operador", "tecnico"] },
+  { href: "/", nome: "Estoque", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/movimentar", nome: "Registrar", perfis: ["admin", "operador"] },
   { href: "/transferencias", nome: "Transferências", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
   { href: "/solicitacoes", nome: "Solicitações", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
-  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "tecnico", "consulta", "agendamento"] },
+  { href: "/dedicados", nome: "Dedicados", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/historico", nome: "Histórico", perfis: ["admin", "operador", "consulta", "agendamento"] },
+  { href: "/chips", nome: "Chips", perfis: ["admin", "operador"] },
   { href: "/cadastros", nome: "Cadastros", perfis: ["admin"] },
   { href: "/usuarios", nome: "Usuários", perfis: ["admin"] },
 ];
@@ -46,19 +48,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
   return (
     <div>
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2">
-          <span className="font-semibold">Estoque Gauss</span>
-          <nav className="flex flex-wrap gap-3 text-sm">
-            {MENU.filter((m) => m.perfis.includes(usuario.perfil)).map((m) => (
-              <Link key={m.href} href={m.href} className="text-slate-600 hover:text-slate-900">{m.nome}</Link>
-            ))}
-          </nav>
-          <span className="ml-auto text-xs text-slate-500">{usuario.nome} · {PERFIS[usuario.perfil]}</span>
+      <header className="bg-gradient-to-r from-marinho-950 via-marinho-900 to-marinho-700 shadow-md">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3">
+          <Link href="/" className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Gauss Fleet" className="h-9 w-9 rounded-lg" />
+            <span className="leading-tight text-white">
+              <span className="block text-sm font-bold tracking-wide">Estoque Gauss</span>
+              <span className="block text-[10px] uppercase tracking-[0.2em] text-slate-400">Gauss Fleet</span>
+            </span>
+          </Link>
+          <Menu itens={MENU.filter((m) => m.perfis.includes(usuario.perfil)).map(({ href, nome }) => ({ href, nome }))} />
+          <span className="ml-auto text-xs text-slate-300">{usuario.nome} · {PERFIS[usuario.perfil]}</span>
           <SairBotao />
         </div>
+        <div className="h-0.5 bg-gradient-to-r from-marca-600 via-marca-500 to-transparent" />
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-5">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 import { Busca } from "@/components/Busca";
-import { nomeUnidade, type Associado, type ItemForm, type Produto, type Unidade } from "@/lib/types";
+import { CHIPS, nomeUnidade, type Associado, type ItemForm, type Produto, type Unidade } from "@/lib/types";
 
 type Props = {
   itens: ItemForm[];
@@ -13,11 +13,13 @@ type Props = {
   permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
   // "sim": cada módulo que tem chicote ganha a caixa "Com chicote" (marcada por padrão), por linha.
   chicote?: "sim" | "nenhum";
+  // "sim": cada módulo de telemetria ganha a escolha do chip (sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo).
+  chip?: "sim" | "nenhum";
 };
 
 export const itemVazio = (): ItemForm => ({ produto_id: "", quantidade: 1 });
 
-export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum" }: Props) {
+export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum", chip = "sim" }: Props) {
   const nomeUn = (u: Unidade) => nomeUnidade(u);
   const nomeProd = new Map(produtos.map((p) => [p.id, p.nome]));
 
@@ -30,7 +32,7 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
       {itens.map((it, i) => (
         <div key={i} className="grid grid-cols-12 items-end gap-2">
           <div className="col-span-12 text-xs sm:col-span-5">{i === 0 && <span className="block">Item</span>}
-            <Busca required value={it.produto_id} onChange={(v) => mudar(i, { produto_id: v, chicote: true, chicoteQtd: undefined })} placeholder="Digite para buscar o item"
+            <Busca required value={it.produto_id} onChange={(v) => mudar(i, { produto_id: v, chicote: true, chicoteQtd: undefined, chip: undefined })} placeholder="Digite para buscar o item"
               opcoes={produtos.map((p) => ({ value: p.id, label: p.nome }))} />
           </div>
           {permiteNegativo && (
@@ -56,6 +58,14 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
           <button type="button" className="btn-sec col-span-2 whitespace-nowrap sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
             Tirar
           </button>
+          {chip === "sim" && it.produto_id !== "" && produtos.find((x) => x.id === it.produto_id)?.usa_chip && (
+            <label className="col-span-12 flex items-center gap-2 pl-1 text-sm">Chip do módulo
+              <select className="campo w-auto" required value={it.chip ?? ""} onChange={(e) => mudar(i, { chip: e.target.value })}>
+                <option value="">Escolha o chip</option>
+                {Object.entries(CHIPS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+              </select>
+            </label>
+          )}
           {chicote === "sim" && it.produto_id !== "" && associados.some((a) => a.produto_id === it.produto_id) && (
             <div className="col-span-12 flex flex-wrap items-center gap-2 pl-1 text-sm">
               <label className="flex items-center gap-2">
@@ -90,6 +100,7 @@ export function itensParaRpc(itens: ItemForm[], associados: Associado[] = []) {
     quantidade: i.sentido === "menos" ? -Math.abs(i.quantidade) : Math.abs(i.quantidade),
     reservado_unidade_id: i.reservado_unidade_id || null,
     reservar_para_unidade_id: i.reservar_para_unidade_id || null,
+    condicao: i.chip || undefined,
   }));
   for (const i of itens) {
     if (i.produto_id === "" || i.chicote === false) continue;
@@ -99,7 +110,7 @@ export function itensParaRpc(itens: ItemForm[], associados: Associado[] = []) {
       const sinal = i.sentido === "menos" ? -1 : 1;
       const igual = linhas.find((l) => l.produto_id === a.associado_id && l.reservado_unidade_id === (i.reservado_unidade_id || null) && l.reservar_para_unidade_id === (i.reservar_para_unidade_id || null));
       if (igual) igual.quantidade += sinal * qtd;
-      else linhas.push({ produto_id: a.associado_id, quantidade: sinal * qtd, reservado_unidade_id: i.reservado_unidade_id || null, reservar_para_unidade_id: i.reservar_para_unidade_id || null });
+      else linhas.push({ produto_id: a.associado_id, quantidade: sinal * qtd, reservado_unidade_id: i.reservado_unidade_id || null, reservar_para_unidade_id: i.reservar_para_unidade_id || null, condicao: undefined });
     }
   }
   return linhas;
