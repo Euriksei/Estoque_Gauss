@@ -1,0 +1,53 @@
+const H=require('./h');const {L,sql,busca,check,msgForm}=H;
+(async()=>{const b=await L.launch();const p=await L.novo(b);await L.login(p,'admin@x.com');
+await L.nav(p,'/movimentar');
+const form=p.locator('form').first();
+// A: entrada por compra com chicote (padrão marcado)
+await form.getByLabel('Tipo').selectOption('ENTRADA_COMPRA');
+await form.getByLabel('Local').selectOption({label:'Nova Lima'});
+await busca(form,'Digite para buscar o item','FMC 650');
+const cx=form.getByLabel(/Com chicote/);
+check(await cx.isChecked(),'A1 caixa "Com chicote" aparece marcada por padrão ao escolher FMC 650');
+await form.locator('input[type=number]').first().fill('100');
+await p.waitForTimeout(300);
+const qtdChic=await form.locator('input[type=number]').nth(1).inputValue();
+check(qtdChic==='100','A2 quantidade de chicotes acompanha o módulo ('+qtdChic+')');
+await form.getByRole('button',{name:'Registrar'}).click();
+check((await msgForm(p)).includes('Movimentação registrada'),'A3 entrada registrada');
+check(sql("select sum(delta) from efeito_estoque e join produto p on p.id=e.produto_id where p.nome='Chicote FMC650'")==='100','A4 chicote FMC650 entrou junto (100)');
+check(sql("select sum(delta) from efeito_estoque e join produto p on p.id=e.produto_id where p.nome='FMC 650'")==='100','A5 FMC 650 entrou (100)');
+// B: entrada sem chicote
+await busca(form,'Digite para buscar o item','FMC 150');
+await form.getByLabel(/Com chicote/).uncheck();
+await form.locator('input[type=number]').first().fill('10');
+await form.getByRole('button',{name:'Registrar'}).click();
+await msgForm(p);
+check(sql("select coalesce(sum(delta),0) from efeito_estoque e join produto p on p.id=e.produto_id where p.nome='Chicote FMC150'")==='0','B1 entrada de FMC 150 sem chicote não criou chicote');
+check(sql("select sum(delta) from efeito_estoque e join produto p on p.id=e.produto_id where p.nome='FMC 150'")==='10','B2 FMC 150 entrou (10)');
+// C: negativo bloqueado
+await busca(form,'Digite para buscar o item','Buzzer');
+const q=form.locator('input[type=number]').first();await q.click();await q.fill('');await q.press('-');await q.type('5');
+check((await q.inputValue())==='5','C1 tecla "-" é bloqueada no campo de quantidade ('+(await q.inputValue())+')');
+check(await form.getByText('Condição').count()===0,'C2 não existe mais campo Condição');
+// D: saída mista: 6 FMC650 com chicote + 2 FMC150 sem, modo técnico
+await L.nav(p,'/movimentar');
+const f2=p.locator('form').first();
+await f2.getByLabel('Tipo').selectOption('SAIDA_CLIENTE');
+await f2.getByLabel('Local').selectOption({label:'Nova Lima'});
+await busca(f2,'Digite para buscar o cliente','Gerdau');
+await f2.getByLabel('Modo de envio').selectOption('tecnico');
+await f2.getByLabel(/Técnico que leva/).selectOption({label:'Ze PJ (PJ)'});
+await busca(f2,'Digite para buscar o item','FMC 650');
+await f2.locator('input[type=number]').first().fill('6');
+await f2.getByRole('button',{name:'+ Adicionar item'}).click();
+await busca(f2,'Digite para buscar o item','FMC 150',1);
+await f2.getByLabel(/Com chicote/).nth(1).uncheck();
+await f2.locator('input[type=number]').nth(2).fill('2');
+await p.screenshot({path:'d_saida_mista.png'});
+await f2.getByRole('button',{name:'Registrar'}).click();
+const m=await msgForm(p);check(m.includes('registrada'),'D1 saída mista registrada: '+m);
+const lin=sql("select p.nome||'='||(-sum(delta))::text from efeito_estoque e join produto p on p.id=e.produto_id where e.delta<0 group by p.nome order by 1");
+check(lin.includes('FMC 650=6')&&lin.includes('Chicote FMC650=6')&&lin.includes('FMC 150=2')&&!lin.includes('Chicote FMC150'),'D2 saiu 6 FMC650 + 6 chicotes + 2 FMC150 sem chicote ('+lin.replace(/\n/g,', ')+')');
+check(sql("select t.nome from movimentacao m join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE'")==='Ze PJ','D3 técnico que levou ficou registrado (Ze PJ)');
+console.log('erros de console:',p.errs.filter(e=>!e.includes('404')));
+await b.close()})().catch(e=>{console.error(e);process.exit(1)});
