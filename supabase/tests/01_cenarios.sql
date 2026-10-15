@@ -25,6 +25,7 @@ create temp table ids as select
  (select id from produto where nome='FMC 650') fmc, (select id from produto where nome='Chicote Galileo') chi,
  (select id from unidade_cliente where nome='Ouro Branco') u1, (select id from unidade_cliente where nome='Mineração') u2;
 grant select on ids to authenticated;
+insert into usuario_local (usuario_id, local_id) select '00000000-0000-0000-0000-0000000000e1', sbc from ids;  -- estoque do agendamento
 set role authenticated;
 \echo '--- 1. Op NL: compra 100 FMC650 no Nova Lima'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
@@ -113,7 +114,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1'
 select criar_solicitacao(jsonb_build_object('origem_id',sbc,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',2)))) as sol2 from ids \gset
 select 'pedido do técnico: origem=' || (select l.nome from solicitacao s join local l on l.id=s.origem_id where s.id=:sol2) || ' (tentou SBC) destino=' || (select l.nome from solicitacao s join local l on l.id=s.destino_id where s.id=:sol2);
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
-select criar_solicitacao(jsonb_build_object('origem_id',sbc,'destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',3)))) as sol3 from ids \gset
+select criar_solicitacao(jsonb_build_object('destino_id',car,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',3)))) as sol3 from ids \gset
 select 'agendamento vê solicitações=' || (select count(*) from solicitacao) || ' e saldo linhas>0=' || ((select count(*) from saldo) > 0);
 \set ON_ERROR_STOP off
 \echo '--- agendamento tenta atender, transferir e registrar (devem falhar)'
@@ -121,7 +122,7 @@ select atender_solicitacao(:sol3, '{"modo_envio":"correios"}'::jsonb);
 select criar_transferencia(jsonb_build_object('origem_id',sbc,'destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
 select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
 \echo '--- agendamento sem origem (deve falhar)'
-select criar_solicitacao(jsonb_build_object('destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('destino_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
 \echo '--- Op SBC não opera Nova Lima: não atende o pedido do técnico (origem NL) (deve falhar)'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
 select atender_solicitacao(:sol2, '{"modo_envio":"correios"}'::jsonb);
@@ -203,3 +204,29 @@ select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
 select trocar_chip(jsonb_build_object('local_id',:nl2,'produto_id',:fm,'quantidade',1,'de','novo','para','claro')) is not null;
 \set ON_ERROR_STOP on
+
+\echo '--- 11. Regras de solicitação: agendamento, cliente, dedicado e quem dá andamento'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
+select 'agendamento: origem=' || (select l.nome from solicitacao s join local l on l.id=s.origem_id where s.id=:sol3) || ' destino carro, cliente=' || (select un.nome from solicitacao s join unidade_cliente un on un.id=s.unidade_id where s.id=:sol3);
+\set ON_ERROR_STOP off
+\echo '--- agendamento tenta estoque -> estoque (deve falhar)'
+select criar_solicitacao(jsonb_build_object('destino_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- agendamento sem cliente (deve falhar)'
+select criar_solicitacao(jsonb_build_object('destino_id',car,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- agendamento tenta criar dedicado (deve falhar)'
+select criar_solicitacao(jsonb_build_object('destino_id',car,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1,'reservar_para_unidade_id',u2)))) from ids;
+\set ON_ERROR_STOP on
+\echo '--- agendamento pede item do dedicado de OUTRO cliente (u2) para o cliente u1: o pedido é aceito (o alerta é na tela)'
+select criar_solicitacao(jsonb_build_object('destino_id',car,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1,'reservado_unidade_id',u2)))) as sol6 from ids \gset
+select 'item sai do dedicado: ' || (select un.nome from solicitacao_item i join unidade_cliente un on un.id=i.reservado_unidade_id where i.solicitacao_id=:sol6);
+\set ON_ERROR_STOP off
+\echo '--- operador SBC não aceita pedido com origem em Nova Lima (deve falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+select criar_solicitacao(jsonb_build_object('origem_id',(select nl from ids),'destino_id',(select sbc from ids),'itens',jsonb_build_array(jsonb_build_object('produto_id',(select fmc from ids),'quantidade',1)))) as sol7 \gset
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+select aceitar_solicitacao(:sol7);
+\echo '--- operador NL (origem) aceita; administrador também poderia'
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select aceitar_solicitacao(:sol7);
+select 'status=' || status::text from solicitacao where id=:sol7;

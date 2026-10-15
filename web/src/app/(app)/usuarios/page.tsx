@@ -19,7 +19,7 @@ export default async function Usuarios() {
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-bold text-marinho-900">Usuários</h1>
-      <p className="text-sm text-slate-600">Quem se cadastra fica inativo até você liberar. Operadores enxergam e movimentam só os estoques marcados; técnicos, só o estoque ligado ao cadastro deles (veja Cadastros, Técnicos).</p>
+      <p className="text-sm text-slate-600">Quem se cadastra fica inativo até você liberar. Operadores enxergam e movimentam só os estoques marcados; técnicos, só o estoque ligado ao cadastro deles (veja Cadastros, Técnicos). Quem é do agendamento precisa de um estoque: é de lá que saem as solicitações dele.</p>
       <div className="card overflow-x-auto p-0">
         <table className="w-full">
           <thead className="border-b border-slate-200"><tr><th className="th">Usuário</th><th className="th">Perfil</th><th className="th">Acesso</th><th className="th">Estoques</th></tr></thead>

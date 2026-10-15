@@ -38,6 +38,18 @@ export function UsuarioLinha({ u, locais, meusLocais }: { u: Usuario; locais: Lo
                 : sb.from("usuario_local").delete().eq("usuario_id", u.id).eq("local_id", l.id))} /> {l.nome}
           </label>
         ))}
+        {u.perfil === "agendamento" && (
+          <label className="flex items-center gap-2 text-sm">Estoque do agendamento
+            <select className="campo w-auto" value={meusLocais.length === 1 ? meusLocais[0] : ""} onChange={async (e) => {
+              const del = await sb.from("usuario_local").delete().eq("usuario_id", u.id);
+              if (del.error) return setErro(del.error.message);
+              rodar(sb.from("usuario_local").insert({ usuario_id: u.id, local_id: Number(e.target.value) }));
+            }}>
+              <option value="" disabled>Selecione</option>
+              {locais.filter((l) => l.tipo === "estoque").map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+            </select>
+          </label>
+        )}
         {u.perfil === "tecnico" && <a className="text-sm underline" href="/cadastros">{carro ? `Estoque: ${carro.nome}` : "Ligue este login a um técnico em Cadastros"}</a>}
         {erro && <div className="text-xs text-marca-700">{erro}</div>}
       </td>

@@ -85,9 +85,25 @@ await L.nav(p,'/movimentar');check((await p.locator('body').innerText()).include
 await L.nav(p,'/transferencias');check(await p.getByRole('button',{name:'Nova transferência'}).count()===0,'7c Agendamento não vê "Nova transferência"');
 await L.nav(p,'/solicitacoes');await p.getByRole('button',{name:'Nova solicitação'}).click();
 const sf=p.locator('form').first();
-await sf.locator('select').nth(0).selectOption({label:'São Bernardo (SBC)'});await sf.locator('select').nth(1).selectOption({label:'Nova Lima'});
+check((await sf.innerText()).includes('Sai de São Bernardo (SBC)'),'7d1 agendamento vê a origem fixa (o estoque dele), sem escolher');
+const dests=(await sf.locator('select').nth(0).locator('option').allInnerTexts()).join('|');
+check(dests.includes('Joao CLT')&&!dests.includes('Nova Lima')&&!dests.includes('São Bernardo'),'7d2 destino só lista técnicos: '+dests);
+await sf.locator('select').nth(0).selectOption({label:'Estoque técnico CLT - Joao CLT'});
+await busca(sf,'Digite para buscar o cliente','Gerdau');
 await busca(sf,'Digite para buscar o item','FMC 150');await sf.locator('input[type=number]').first().fill('2');
-await sf.getByRole('button',{name:'Enviar solicitação'}).click();m=await msgForm(p);check(m.includes('Solicitação enviada'),'7d Agendamento criou solicitação SBC→NL: '+m);
+await sf.getByRole('button',{name:'Enviar solicitação'}).click();m=await msgForm(p);check(m.includes('Solicitação enviada'),'7d agendamento pediu SBC→técnico para Gerdau (estoque livre): '+m);
+// item do dedicado de OUTRO cliente: alerta pedindo confirmação
+const avisos=[];p.on('dialog',d=>avisos.push(d.message()));
+await sf.locator('select').nth(0).selectOption({label:'Estoque técnico CLT - Joao CLT'});
+await busca(sf,'Digite para buscar o cliente','Gerdau');
+await busca(sf,'Digite para buscar o item','FMC 150');await sf.locator('input[type=number]').first().fill('1');
+await sf.locator('input[placeholder="Estoque livre"]').first().click();await p.locator('ul li').filter({hasText:'CSN - Mineração'}).first().click();
+await sf.getByRole('button',{name:'Enviar solicitação'}).click();m=await msgForm(p);
+check(avisos.length===1&&avisos[0].includes('cliente diferente')&&avisos[0].includes('CSN - Mineração')&&avisos[0].includes('Gerdau'),'7d3 alerta de dedicado indo para cliente diferente: '+(avisos[0]||'').replace(/\n/g,' / '));
+check(m.includes('Solicitação enviada'),'7d4 depois de confirmar, a solicitação é enviada');
+await L.nav(p,'/solicitacoes');const lista=await p.locator('body').innerText();
+check(lista.includes('cliente: Gerdau - Ouro Branco')&&lista.includes('cliente diferente do dedicado'),'7d5 a lista mostra o cliente e o aviso de dedicado de outro cliente');
+await p.screenshot({path:'d_solic_agendamento.png'});
 await L.nav(p,'/solicitacoes');check(await p.getByRole('button',{name:/Atender|Cancelar/}).count()===0||true,'7e (info) botões na tela do agendamento');
 console.log('   botões Atender visíveis p/ agendamento:',await p.getByRole('button',{name:/Atender/}).count());
 await p.context().close();
@@ -95,7 +111,7 @@ p=await L.novo(b);await L.login(p,'cons@x.com');await L.nav(p,'/solicitacoes');
 check(await p.getByRole('button',{name:'Nova solicitação'}).count()===0,'7f Consulta não vê "Nova solicitação"');await p.context().close();
 // operador SBC atende o pedido do agendamento (origem SBC)
 p=await L.novo(b);await L.login(p,'sbc@x.com');await L.nav(p,'/solicitacoes');
-check(await p.getByRole('button',{name:/Aceitar/}).count()===1,'7g Operador SBC vê Aceitar no pedido que sai do SBC');
+check(await p.getByRole('button',{name:/Aceitar/}).count()===2,'7g Operador SBC vê Aceitar nos 2 pedidos que saem do SBC');
 // 8) login com senha errada
 const q=await L.novo(b);await q.goto(L.BASE+'/login');await q.fill('input[type=email]','admin@x.com');await q.fill('input[type=password]','errada1');await q.click('button.btn');await q.waitForTimeout(1500);
 check((await q.locator('body').innerText()).includes('incorretos'),'8a senha errada mostra mensagem');
