@@ -52,6 +52,14 @@ check(s('FMC 150','vivo')==='1','3f descartar sem motivo é barrado (observaçã
 await f.getByLabel(/Observação/).fill('não comunicou no teste');
 await f.getByRole('button',{name:'Registrar troca de chip'}).click();check((await msgForm(p)).includes('Chip registrado'),'3g descartar com motivo registrado');
 check(s('FMC 150','vivo')==='0'&&s('Chip Vivo M2M')==='3','3h módulo voltou a sem chip e o chip avulso NÃO voltou ao estoque (descartado)');
+// chip ruim: descartar e pegar outro da mesma operadora
+const mc=s('FMC 150','claro'),ac=s('Chip Claro M2M');
+await f.getByLabel('Quantidade de módulos').fill('1');
+await f.getByLabel('Chip que o módulo tem hoje').selectOption('claro');await f.getByLabel('Chip que ele vai ficar').selectOption('claro');
+check(await f.getByLabel('O que fazer com o chip retirado').isDisabled(),'3i mesmo chip nos dois campos trava a opção em "Descartar"');
+await f.getByLabel(/Observação/).fill('não conectou na produção');
+await f.getByRole('button',{name:'Registrar troca de chip'}).click();check((await msgForm(p)).includes('Chip registrado'),'3j substituir chip ruim registrado');
+check(s('FMC 150','claro')===mc&&Number(s('Chip Claro M2M'))===Number(ac)-1,'3k módulo continua Claro e o avulso Claro baixou 1 (o ruim foi descartado)');
 await p.screenshot({path:'d_chips.png'});
 // 4) mensagem de saldo cita o chip
 await f.getByLabel('Quantidade de módulos').fill('99');

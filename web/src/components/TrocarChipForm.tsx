@@ -23,7 +23,7 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
     e.preventDefault();
     setOcupado(true); setMsg("");
     const { error } = await supabaseBrowser().rpc("trocar_chip", {
-      p: { local_id: local, produto_id: produto, quantidade: qtd, de, para, chip_retirado: retirado, observacao: obs },
+      p: { local_id: local, produto_id: produto, quantidade: qtd, de, para, chip_retirado: mesmo ? "descartar" : retirado, observacao: obs },
     });
     setOcupado(false);
     setOk(!error);
@@ -33,6 +33,7 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
   }
 
   const retira = de !== "novo";
+  const mesmo = de === para && de !== "novo"; // trocar por outro chip da mesma operadora: o antigo é descartado
   return (
     <form onSubmit={enviar} className="card grid gap-3 sm:grid-cols-2">
       <label className="text-sm">Estoque
@@ -62,17 +63,17 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
       </label>
       {retira && (
         <label className="text-sm sm:col-span-2">O que fazer com o chip retirado
-          <select className="campo mt-1" value={retirado} onChange={(e) => setRetirado(e.target.value)}>
+          <select className="campo mt-1" value={mesmo ? "descartar" : retirado} disabled={mesmo} onChange={(e) => setRetirado(e.target.value)}>
             <option value="estoque">Voltar para o estoque de chips avulsos</option>
             <option value="descartar">Descartar (chip ruim, módulo não comunicou)</option>
           </select>
         </label>
       )}
-      <label className="text-sm sm:col-span-2">Observação{retirado === "descartar" && retira ? " (obrigatória ao descartar)" : ""}
-        <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={retirado === "descartar" && retira} />
+      <label className="text-sm sm:col-span-2">Observação{(retirado === "descartar" || mesmo) && retira ? " (obrigatória ao descartar)" : ""}
+        <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={(retirado === "descartar" || mesmo) && retira} />
       </label>
       <p className="text-xs text-slate-500 sm:col-span-2">
-        Instalar um chip baixa 1 chip avulso da operadora escolhida por módulo. Trocar de operadora devolve o chip antigo ao estoque avulso (ou descarta, se você escolher).
+        Instalar um chip baixa 1 chip avulso da operadora escolhida por módulo. Trocar de operadora devolve o chip antigo ao estoque avulso (ou descarta, se você escolher). Para trocar um chip ruim por outro da mesma operadora, deixe o mesmo chip nos dois campos: o antigo é descartado e sai outro do avulso.
       </p>
       <div className="flex items-center gap-3 sm:col-span-2">
         <button className="btn" disabled={ocupado}>Registrar troca de chip</button>
