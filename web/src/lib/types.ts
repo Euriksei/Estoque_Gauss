@@ -68,14 +68,14 @@ export const SITUACOES: Record<string, string> = {
 };
 export type Pedido = {
   id: number; tipo: string; status: string; origem_id: number | null; destino_id: number | null; unidade_id: number | null;
-  chamado_url: string | null; observacao: string | null; prazo_producao: string | null; movimentacao_id: number | null; criado_em: string;
+  chamado_url: string | null; observacao: string | null; finalidade?: string | null; prazo_producao: string | null; movimentacao_id: number | null; criado_em: string;
   criador: { nome: string } | null;
   solicitacao_item: { id: number; produto_id: number; quantidade: number; condicao: string | null; reservar_para_unidade_id: number | null; reservado_unidade_id: number | null; produto: { nome: string; usa_chip: boolean } | null }[];
   solicitacao_dedicado: { unidade_id: number }[];
 };
 export type AcoesPedido = { id: number; situacao: string; pode_aceitar: boolean; pode_atender: boolean; pode_cancelar: boolean };
 // Colunas do select de pedidos (o criador é solicitacao.tecnico_id, nome antigo da coluna).
-export const SELECT_PEDIDO = "id,tipo,status,origem_id,destino_id,unidade_id,chamado_url,observacao,prazo_producao,movimentacao_id,criado_em, criador:usuario(nome), solicitacao_item(id,produto_id,quantidade,condicao,reservar_para_unidade_id,reservado_unidade_id, produto(nome,usa_chip)), solicitacao_dedicado(unidade_id)";
+export const SELECT_PEDIDO = "id,tipo,status,origem_id,destino_id,unidade_id,chamado_url,observacao,finalidade,prazo_producao,movimentacao_id,criado_em, criador:usuario(nome), solicitacao_item(id,produto_id,quantidade,condicao,reservar_para_unidade_id,reservado_unidade_id, produto(nome,usa_chip)), solicitacao_dedicado(unidade_id)";
 
 export const PERFIS: Record<Perfil, string> = {
   admin: "Administrador",

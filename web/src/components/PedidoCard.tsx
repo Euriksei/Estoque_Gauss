@@ -28,6 +28,7 @@ export function PedidoCard({ s, situacao, de, para, nomeUn, dedicadoJunto, envio
             prazo até {new Date(s.prazo_producao).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })}{atrasada && " (atrasado)"}
           </span>
         )}
+        {s.finalidade && <span>finalidade: <strong>{s.finalidade === "mobilizacao" ? "Mobilização" : s.finalidade === "manutencao" ? "Manutenção" : s.finalidade}</strong></span>}
         {s.unidade_id && <span>cliente: <strong>{nomeUn.get(s.unidade_id)}</strong></span>}
         <span className="text-slate-500">pedido por {s.criador?.nome ?? "-"} em {new Date(s.criado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span>
         {s.chamado_url && <a className="underline" href={s.chamado_url} target="_blank" rel="noreferrer">chamado</a>}

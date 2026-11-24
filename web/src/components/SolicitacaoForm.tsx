@@ -27,6 +27,7 @@ export function SolicitacaoForm({ produtos, associados, unidades, estoques, dedi
   const [local, setLocal] = useState<number | "">("");
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()]);
   const [chamado, setChamado] = useState("");
+  const [finalidade, setFinalidade] = useState("");
   const [obs, setObs] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -46,7 +47,7 @@ export function SolicitacaoForm({ produtos, associados, unidades, estoques, dedi
     if (chamadoObrigatorio && !/^https?:\/\/\S+$/i.test(chamado.trim()))
       return setMsg({ ok: false, texto: "Informe o link do chamado no Jira, começando com http:// ou https:// (obrigatório em Enviar dedicado e Retirar dedicado)." });
     const linhas = itensParaRpc(itens, associados).map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade }));
-    const base = { tipo, unidade_id: unidade, chamado_url: chamado.trim(), observacao: obs };
+    const base = { tipo, finalidade, unidade_id: unidade, chamado_url: chamado.trim(), observacao: obs };
     const p = tipo === "enviar_cliente" ? { ...base, origem_id: local, itens: linhas }
       : tipo === "enviar_dedicado" ? { ...base, origem_id: local }
       : { ...base, destino_id: local, itens: linhas };
@@ -76,6 +77,13 @@ export function SolicitacaoForm({ produtos, associados, unidades, estoques, dedi
           <select className="campo mt-1" value={local} onChange={(e) => setLocal(e.target.value ? Number(e.target.value) : "")} required>
             <option value="">{tipo === "enviar_dedicado" && unidade !== "" && opcoesLocal.length === 0 ? "Sem dedicado desta unidade" : "Selecione"}</option>
             {opcoesLocal.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+          </select>
+        </label>
+        <label className="text-sm">Finalidade
+          <select className="campo mt-1" value={finalidade} onChange={(e) => setFinalidade(e.target.value)} required>
+            <option value="">Selecione</option>
+            <option value="mobilizacao">Mobilização</option>
+            <option value="manutencao">Manutenção</option>
           </select>
         </label>
       </div>
