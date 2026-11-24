@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getUsuario, getCatalogo, getLocais, nomeUnidade } from "@/lib/dados";
-import { nomeItem } from "@/lib/types";
+import { CHIPS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Linha = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
+// Ordem das colunas de chip dos módulos (condicao no banco: novo = sem chip).
+const ORDEM_CHIPS = ["novo", "vivo", "claro", "arquia"] as const;
+type LinhaTela = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number; chips: Record<string, number> | null };
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {
   const usuario = (await getUsuario())!;
@@ -34,6 +37,31 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
     .filter((s) => (searchParams.grupo ? grupoDe(s.local_id) === searchParams.grupo : true))
     .filter((s) => (filtroCat ? nomeProduto.get(s.produto_id)?.categoria_id === filtroCat : true))
     .filter((s) => (q ? (nomeProduto.get(s.produto_id)?.nome ?? "").toLowerCase().includes(q) : true));
+
+  // Módulo com chip: uma linha por local/item/reserva, com o saldo de cada chip (inclusive os zerados) e o total.
+  const agrupar = (lista: Linha[]) => {
+    const saida: LinhaTela[] = [];
+    const porChave = new Map<string, LinhaTela>();
+    for (const s of lista) {
+      if (!nomeProduto.get(s.produto_id)?.usa_chip) { saida.push({ ...s, chips: null }); continue; }
+      const chave = `${s.local_id}|${s.produto_id}|${s.reservado_unidade_id ?? ""}`;
+      let l = porChave.get(chave);
+      if (!l) {
+        l = { local_id: s.local_id, produto_id: s.produto_id, reservado_unidade_id: s.reservado_unidade_id, quantidade: 0,
+              chips: Object.fromEntries(ORDEM_CHIPS.map((c) => [c, 0])) };
+        porChave.set(chave, l);
+        saida.push(l);
+      }
+      l.chips![s.condicao] = (l.chips![s.condicao] ?? 0) + s.quantidade;
+      l.quantidade += s.quantidade;
+    }
+    return saida;
+  };
+  // O dedicado não entra na contagem geral: a tabela principal é só o estoque livre; o dedicado tem a seção própria.
+  const linhasTela = agrupar(linhas.filter((s) => s.reservado_unidade_id === null));
+  const dedicadas = agrupar(linhas.filter((s) => s.reservado_unidade_id !== null));
+  const unidadesDedicadas = [...new Set(dedicadas.map((l) => l.reservado_unidade_id!))]
+    .sort((a, b) => (nomeUn.get(a) ?? "").localeCompare(nomeUn.get(b) ?? "", "pt-BR"));
 
   // Alerta de estoque mínimo: soma do estoque livre dos locais fixos (não conta o carro do técnico nem dedicados).
   const fixos = new Set(todos.filter((l) => l.tipo === "estoque").map((l) => l.id));
@@ -81,25 +109,59 @@ export default async function Estoque({ searchParams }: { searchParams: { local?
         <button className="btn-sec">Filtrar</button>
       </form>
 
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full">
-          <thead className="border-b border-slate-200">
-            <tr><th className="th">Local</th><th className="th">Categoria</th><th className="th">Item</th><th className="th">Livre ou dedicado</th><th className="th text-right">Qtd.</th></tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {linhas.map((s, i) => (
-              <tr key={i}>
-                <td className="td">{nomeLocal.get(s.local_id)}</td>
-                <td className="td">{nomeProduto.get(s.produto_id)?.categoria?.nome}</td>
-                <td className="td">{nomeItem(nomeProduto.get(s.produto_id)?.nome, nomeProduto.get(s.produto_id)?.usa_chip, s.condicao)}</td>
-                <td className="td">{s.reservado_unidade_id ? `Dedicado: ${nomeUn.get(s.reservado_unidade_id)}` : "Livre"}</td>
-                <td className="td text-right font-medium">{s.quantidade}</td>
-              </tr>
-            ))}
-            {linhas.length === 0 && <tr><td className="td text-slate-500" colSpan={5}>Nenhum item em estoque.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <TabelaSaldo linhas={linhasTela} comLocal vazio="Nenhum item no estoque livre." nomeLocal={nomeLocal} nomeProduto={nomeProduto} />
+
+      {/* Estoque dedicado: separado do livre, por cliente/unidade, com os próprios totais e as colunas de chip. */}
+      <section className="space-y-3" aria-labelledby="titulo-dedicado">
+        <h2 id="titulo-dedicado" className="text-lg font-semibold text-marinho-900">Estoque dedicado</h2>
+        <p className="text-sm text-slate-600">Itens reservados para um cliente. Não entram no estoque livre acima nem no alerta de mínimo.</p>
+        {unidadesDedicadas.length === 0 && <p className="text-sm text-slate-500">Nenhum item dedicado nos filtros escolhidos.</p>}
+        {unidadesDedicadas.map((u) => {
+          const doCliente = dedicadas.filter((l) => l.reservado_unidade_id === u);
+          return (
+            <div key={u} className="space-y-1" data-dedicado={nomeUn.get(u)}>
+              <h3 className="text-sm font-medium">{nomeUn.get(u)} <span className="font-normal text-slate-500">· total {doCliente.reduce((a, l) => a + l.quantidade, 0)}</span></h3>
+              <TabelaSaldo linhas={doCliente} comLocal vazio="" nomeLocal={nomeLocal} nomeProduto={nomeProduto} />
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
+
+// Tabela de saldo: módulos com chip mostram uma coluna por chip (o zero em cinza) e a quantidade total.
+function TabelaSaldo({ linhas, comLocal, vazio, nomeLocal, nomeProduto }: {
+  linhas: LinhaTela[]; comLocal?: boolean; vazio: string;
+  nomeLocal: Map<number, string>; nomeProduto: Map<number, { nome: string; categoria?: { nome: string } | null }>;
+}) {
+  const temModulo = linhas.some((l) => l.chips);
+  const colunas = (comLocal ? 3 : 2) + (temModulo ? ORDEM_CHIPS.length : 0);
+  return (
+    <div className="card overflow-x-auto p-0">
+      <table className="w-full">
+        <thead className="border-b border-slate-200">
+          <tr>{comLocal && <th className="th">Local</th>}<th className="th">Categoria</th><th className="th">Item</th>
+            {temModulo && ORDEM_CHIPS.map((c) => <th key={c} className="th text-right" title="Módulos: saldo por chip">{CHIPS[c]}</th>)}
+            <th className="th text-right">{temModulo ? "Qtd. total" : "Qtd."}</th></tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {linhas.map((s, i) => (
+            <tr key={i}>
+              {comLocal && <td className="td">{nomeLocal.get(s.local_id)}</td>}
+              <td className="td">{nomeProduto.get(s.produto_id)?.categoria?.nome}</td>
+              <td className="td">{nomeProduto.get(s.produto_id)?.nome}</td>
+              {temModulo && ORDEM_CHIPS.map((c) => (
+                <td key={c} data-chip={c} className={`td text-right ${s.chips && s.chips[c] === 0 ? "text-slate-400" : ""}`}>
+                  {s.chips ? s.chips[c] : ""}
+                </td>
+              ))}
+              <td className="td text-right font-medium">{s.quantidade}</td>
+            </tr>
+          ))}
+          {linhas.length === 0 && vazio && <tr><td className="td text-slate-500" colSpan={colunas + 1}>{vazio}</td></tr>}
+        </tbody>
+      </table>
     </div>
   );
 }

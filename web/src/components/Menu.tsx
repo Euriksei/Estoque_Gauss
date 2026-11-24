@@ -10,7 +10,7 @@ export function Menu({ itens }: { itens: { href: string; nome: string }[] }) {
   useEffect(() => setClicado(null), [caminho]);
   const atual = clicado ?? caminho;
   return (
-    <nav className="flex flex-wrap gap-1 text-sm">
+    <nav className="flex gap-0.5 whitespace-nowrap text-sm">
       {itens.map((m) => {
         const ativo = m.href === "/" ? atual === "/" : atual.startsWith(m.href);
         return (
@@ -18,7 +18,7 @@ export function Menu({ itens }: { itens: { href: string; nome: string }[] }) {
             key={m.href}
             href={m.href}
             onClick={() => setClicado(m.href)}
-            className={`rounded-lg px-3 py-1.5 font-medium transition ${ativo ? "bg-marca-600 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}
+            className={`shrink-0 rounded-lg px-2.5 py-1.5 font-medium transition ${ativo ? "bg-marca-600 text-white" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}
           >
             {m.nome}
           </Link>

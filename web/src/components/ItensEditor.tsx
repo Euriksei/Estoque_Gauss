@@ -13,13 +13,16 @@ type Props = {
   permiteNegativo?: boolean; // ajuste de inventário: mostra Aumentar/Reduzir (a quantidade é sempre positiva)
   // "sim": cada módulo que tem chicote ganha a caixa "Com chicote" (marcada por padrão), por linha.
   chicote?: "sim" | "nenhum";
-  // "sim": cada módulo de telemetria ganha a escolha do chip (sem chip, Claro, Vivo, Arquia Claro, Arquia Vivo).
+  // "sim": cada módulo de telemetria ganha a escolha do chip (sem chip, Claro, Vivo, Arqia).
   chip?: "sim" | "nenhum";
+  // Saídas: saldo disponível da linha no local escolhido (null = não mostrar) e se a quantidade passou dele.
+  disponivel?: (it: ItemForm) => { disponivel: number; passou: boolean } | null;
+  permiteVazio?: boolean; // deixa tirar a última linha (pedido que leva só dedicado)
 };
 
 export const itemVazio = (): ItemForm => ({ produto_id: "", quantidade: 1 });
 
-export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum", chip = "sim" }: Props) {
+export function ItensEditor({ itens, onChange, produtos, associados, unidades, reserva = "nenhuma", permiteNegativo, chicote = "nenhum", chip = "sim", disponivel, permiteVazio }: Props) {
   const nomeUn = (u: Unidade) => nomeUnidade(u);
   const nomeProd = new Map(produtos.map((p) => [p.id, p.nome]));
 
@@ -55,7 +58,7 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
                 onChange={(v) => mudar(i, reserva === "reservar" ? { reservar_para_unidade_id: v } : { reservado_unidade_id: v })} />
             </div>
           )}
-          <button type="button" className="btn-sec col-span-2 whitespace-nowrap sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={itens.length === 1}>
+          <button type="button" className="btn-sec col-span-2 whitespace-nowrap sm:col-span-1" title="Tira esta linha da lista antes de registrar" onClick={() => onChange(itens.filter((_, k) => k !== i))} disabled={!permiteVazio && itens.length === 1}>
             Tirar
           </button>
           {chip === "sim" && it.produto_id !== "" && produtos.find((x) => x.id === it.produto_id)?.usa_chip && (
@@ -66,6 +69,14 @@ export function ItensEditor({ itens, onChange, produtos, associados, unidades, r
               </select>
             </label>
           )}
+          {(() => {
+            const d = disponivel?.(it);
+            return d && (
+              <p data-disponivel={d.disponivel} className={`col-span-12 pl-1 text-xs ${d.passou ? "font-medium text-marca-700" : "text-slate-600"}`}>
+                Disponível: {d.disponivel}{d.passou && " (a quantidade passa do disponível)"}
+              </p>
+            );
+          })()}
           {chicote === "sim" && it.produto_id !== "" && associados.some((a) => a.produto_id === it.produto_id) && (
             <div className="col-span-12 flex flex-wrap items-center gap-2 pl-1 text-sm">
               <label className="flex items-center gap-2">

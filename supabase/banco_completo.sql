@@ -1485,9 +1485,9 @@ from (values
   ('Camera IP', 'Câmeras', '', 'Intelbrás', '30', '0'),
   ('Camera de ré', 'Câmeras', '', 'Mercado Livre', '10', '0'),
   ('Camera Contadora passageiros', 'Câmeras', '', 'Intelbrás', '30', '0'),
-  ('DVR DashCAM', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
-  ('DVR Intelbras 3404', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
-  ('DVR Intelbras 5404', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
+  ('DashCAM', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
+  ('MDVR Intelbras 3404', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
+  ('MDVR Intelbras 5404', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
   ('Monitor Intelbras CP4', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
   ('Monitor de alarme', 'MDVR e monitores', '', 'Intelbrás', '30', '0'),
   ('Cabo rede 3 metros', 'Cabos, chicotes e conexões', '', 'Intelbrás', '30', '0'),
@@ -1600,4 +1600,1148 @@ select v.nome, (select id from categoria where nome = 'Comunicação e conectivi
 on conflict (nome) do nothing;
 update produto set chip_tipo = 'arquia_claro' where nome = 'Chip Arqia Claro M2M';
 update produto set chip_tipo = 'arquia_vivo'  where nome = 'Chip Arqia Vivo M2M';
+
+
+-- ================================================================ 0013_catalogo
+-- Catálogo novo (77 itens) e chip Arqia como uma operadora só (mesmo conteúdo de atualizar_catalogo.sql).
+
+
+-- ---------------------------------------------------------------- 1. Arqia: uma operadora só
+-- Renomear o valor do enum mantém as linhas existentes; o que era arquia_vivo passa para arquia.
+do $$ begin
+  if exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+              where t.typname = 'condicao_item' and e.enumlabel = 'arquia_claro') then
+    alter type condicao_item rename value 'arquia_claro' to 'arquia';
+  end if;
+end $$;
+update movimentacao_item set condicao = 'arquia' where condicao::text = 'arquia_vivo';
+
+create or replace function public.fn_rotulo_chip(c text) returns text language sql immutable as $$
+  select case c when 'novo' then 'sem chip' when 'claro' then 'Claro' when 'vivo' then 'Vivo'
+                when 'arquia' then 'Arqia' else c end
+$$;
+
+create or replace function public.fn_gravar_itens(p_mov bigint, p_itens jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare it jsonb; v_pid integer; v_chip text;
+begin
+  if p_itens is null or jsonb_typeof(p_itens) <> 'array' or jsonb_array_length(p_itens) = 0 then
+    raise exception 'Informe ao menos um item';
+  end if;
+  for it in select * from jsonb_array_elements(p_itens) loop
+    v_pid := (it->>'produto_id')::int;
+    -- só módulos com chip guardam o chip; os demais itens ficam sempre em 'novo'
+    v_chip := case when exists (select 1 from produto where id = v_pid and usa_chip)
+                   then coalesce(nullif(it->>'condicao',''), 'novo') else 'novo' end;
+    if v_chip not in ('novo','claro','vivo','arquia') then raise exception 'Chip inválido: %', v_chip; end if;
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade, reservado_unidade_id,
+                                   reservar_para_unidade_id)
+    values (p_mov, v_pid, v_chip::condicao_item, (it->>'quantidade')::int,
+            nullif(it->>'reservado_unidade_id','')::int,
+            nullif(it->>'reservar_para_unidade_id','')::int);
+  end loop;
+end $$;
+
+-- Trocar chip: converte módulos de "de" para "para" (sem chip, Claro, Vivo, Arqia).
+-- Instalar chip avulso baixa o chip avulso; o chip retirado volta ao estoque avulso ou é descartado.
+-- p: {local_id, produto_id, quantidade, de, para, chip_retirado ('estoque'|'descartar'), observacao, data}
+create or replace function public.trocar_chip(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_local integer := (p->>'local_id')::int; v_prod integer := (p->>'produto_id')::int;
+  v_qtd integer := (p->>'quantidade')::int;
+  v_de text := coalesce(nullif(p->>'de',''), 'novo'); v_para text := coalesce(nullif(p->>'para',''), 'novo');
+  v_dest text := coalesce(nullif(p->>'chip_retirado',''), 'estoque');
+  v_id bigint; v_chip_de integer; v_chip_para integer; v_obs text := nullif(p->>'observacao','');
+begin
+  if fn_perfil()::text not in ('admin','operador') then
+    raise exception 'Só administrador e operador trocam chip' using errcode = '42501';
+  end if;
+  if v_local is null or not fn_pode_operar_local(v_local) then
+    raise exception 'Sem permissão para movimentar este local' using errcode = '42501';
+  end if;
+  if not exists (select 1 from produto where id = v_prod and usa_chip) then raise exception 'Este item não usa chip'; end if;
+  if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
+  if v_de not in ('novo','claro','vivo','arquia') or v_para not in ('novo','claro','vivo','arquia') then
+    raise exception 'Chip inválido';
+  end if;
+  if v_de = v_para then raise exception 'O chip de origem e o de destino são iguais'; end if;
+  if v_dest not in ('estoque','descartar') then raise exception 'chip_retirado deve ser estoque ou descartar'; end if;
+  if v_dest = 'descartar' and v_de <> 'novo' and v_obs is null then
+    raise exception 'Descartar chip exige o motivo (ex.: módulo não comunicou)';
+  end if;
+  if v_de <> 'novo' then select id into v_chip_de from produto where chip_tipo = v_de and ativo order by id limit 1;
+    if v_chip_de is null then raise exception 'Não há item de chip avulso cadastrado para %', fn_rotulo_chip(v_de); end if; end if;
+  if v_para <> 'novo' then select id into v_chip_para from produto where chip_tipo = v_para and ativo order by id limit 1;
+    if v_chip_para is null then raise exception 'Não há item de chip avulso cadastrado para %', fn_rotulo_chip(v_para); end if; end if;
+
+  perform fn_travar_locais(array[v_local]);
+  insert into movimentacao (tipo, status, data, local_destino_id, observacao, criado_por)
+  values ('TROCA_CHIP', 'registrado', coalesce((p->>'data')::date, current_date), v_local,
+          concat_ws(E'\n', fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) ||
+                    case when v_de <> 'novo' and v_dest = 'descartar' then ' (chip retirado descartado)' else '' end, v_obs), auth.uid())
+  returning id into v_id;
+  insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
+    (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  if v_chip_de is not null and v_dest = 'estoque' then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_de, 'novo', v_qtd);
+  end if;
+  if v_chip_para is not null then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_para, 'novo', -v_qtd);
+  end if;
+  perform fn_verificar_saldo(array[v_local]);
+  return v_id;
+end $$;
+
+-- Chip avulso da Arqia: "Chip Arqia M2M". O que estava em Arqia Claro/Vivo M2M passa para ele.
+update produto set chip_tipo = 'arquia' where nome = 'Chip Arqia M2M';
+update movimentacao_item set produto_id = (select id from produto where nome = 'Chip Arqia M2M')
+ where produto_id in (select id from produto where nome in ('Chip Arqia Claro M2M', 'Chip Arqia Vivo M2M'));
+update pedido_compra set produto_id = (select id from produto where nome = 'Chip Arqia M2M')
+ where produto_id in (select id from produto where nome in ('Chip Arqia Claro M2M', 'Chip Arqia Vivo M2M'));
+-- Solicitações: a linha (solicitação, item, reservas) é única. Soma na linha do Chip Arqia M2M
+-- quando ela já existe; senão cria. As linhas antigas saem no passo 4, junto com os dois produtos.
+create temporary table arqia_sol as
+select si.solicitacao_id, si.reservar_para_unidade_id, si.reservado_unidade_id, sum(si.quantidade) as qtd
+  from solicitacao_item si join produto p on p.id = si.produto_id
+ where p.nome in ('Chip Arqia Claro M2M', 'Chip Arqia Vivo M2M')
+ group by 1, 2, 3;
+update solicitacao_item si set quantidade = si.quantidade + a.qtd
+  from arqia_sol a
+ where si.produto_id = (select id from produto where nome = 'Chip Arqia M2M')
+   and si.solicitacao_id = a.solicitacao_id
+   and coalesce(si.reservar_para_unidade_id, 0) = coalesce(a.reservar_para_unidade_id, 0)
+   and coalesce(si.reservado_unidade_id, 0) = coalesce(a.reservado_unidade_id, 0);
+insert into solicitacao_item (solicitacao_id, produto_id, quantidade, reservar_para_unidade_id, reservado_unidade_id)
+select a.solicitacao_id, (select id from produto where nome = 'Chip Arqia M2M'), a.qtd,
+       a.reservar_para_unidade_id, a.reservado_unidade_id
+  from arqia_sol a
+ where not exists (select 1 from solicitacao_item si
+                    where si.produto_id = (select id from produto where nome = 'Chip Arqia M2M')
+                      and si.solicitacao_id = a.solicitacao_id
+                      and coalesce(si.reservar_para_unidade_id, 0) = coalesce(a.reservar_para_unidade_id, 0)
+                      and coalesce(si.reservado_unidade_id, 0) = coalesce(a.reservado_unidade_id, 0));
+drop table arqia_sol;
+
+-- ---------------------------------------------------------------- 2. Renomear
+update produto p set nome = v.novo
+  from (values
+    ('ECO 5', 'Módulo ECO 5'),
+    ('ECO-LIGHT +S', 'Módulo ECO-LIGHT +S'),
+    ('FMB920', 'Módulo FMB920'),
+    ('FMC 130', 'Módulo FMC 130'),
+    ('FMC 150', 'Módulo FMC 150'),
+    ('FMC 650', 'Módulo FMC 650'),
+    ('Galileo 7x / 10HUB', 'Módulo Galileo 7x / 10HUB'),
+    ('GF Pro4', 'Módulo GF Pro4'),
+    ('HCV5', 'Módulo HCV5'),
+    ('PRO5 Lite', 'Módulo PRO5 Lite'),
+    ('TRACE 5', 'Módulo TRACE 5'),
+    ('SUNTECH Plug Play', 'Módulo SUNTECH PLUG PLAY'),
+    ('Camera Contexto (3Fios)', 'Camera contexto DVR'),
+    ('Camera Contexto (3Fios) DashCAM', 'Camera Contexto DashCAM'),
+    ('Camera Fadiga (T)', 'Camera Fadiga DVR'),
+    ('Camera Fadiga (T) DashCAM', 'Camera Fadiga DashCAM'),
+    ('Camera frontal (vermelha)', 'Camera frontal (Adas) DVR'),
+    ('Monitor de alarme', 'Monitor de alarme (SmartWach)'),
+    ('Cabo rede 3 metros', 'Cabo rede'),
+    ('Chicote Galileo', 'Chicote Galileo 7x / 10HUB'),
+    ('Extensão cameras Intelbras', 'Extensão cameras'),
+    ('Extensão cameras Intelbras DashCAM', 'Extensão cameras DashCAM'),
+    ('Tablet Multilaser 7''''', 'Tablet Multilaser'),
+    ('Suporte Case Tablet Multilaser 7"', 'Case Tablet Multilaser'),
+    ('Suporte Case Tablet Samsung 8"', 'Case Tablet Samsung'),
+    ('Suporte Tablet Multilaser 7"', 'Suporte Tablet Multilaser'),
+    ('Suporte Tablet Samsung 8"', 'Suporte Tablet Samsung'),
+    ('Leitor RFID 125 SGBRAS', 'Leitor RFID 125'),
+    ('Leitor RFID 13,56 SGBRAS', 'Leitor RFID 13,56')
+  ) as v(antigo, novo)
+ where p.nome = v.antigo
+   and not exists (select 1 from produto x where x.nome = v.novo);
+
+-- ---------------------------------------------------------------- 2b. MDVR e monitores (lista de 2026-11-23)
+-- Renomeia (mesmo id, o histórico continua ligado). Os dois MDVRs Intelbras continuam separados.
+update produto p set nome = v.novo
+  from (values
+    ('DVR DashCAM', 'DashCAM'),
+    ('DVR Intelbras 3404', 'MDVR Intelbras 3404'),
+    ('DVR Intelbras 5404', 'MDVR Intelbras 5404')
+  ) as v(antigo, novo)
+ where p.nome = v.antigo
+   and not exists (select 1 from produto x where x.nome = v.novo);
+
+-- ---------------------------------------------------------------- 3. Itens novos
+insert into produto (nome, categoria_id, fornecedor_id, prazo_medio_dias)
+values
+  ('Camera frontal (Adas) DashCAM', (select id from categoria where nome = 'Câmeras'),
+   (select id from fornecedor where nome = 'Intelbrás'), 30),
+  ('Chicote SUNTECH Plug Play', (select id from categoria where nome = 'Cabos, chicotes e conexões'),
+   (select id from fornecedor where nome = 'Suntech'), 15)
+on conflict (nome) do nothing;
+
+-- O módulo Suntech sai com o chicote dele (sugestão editável, "Com chicote").
+insert into item_associado (produto_id, associado_id, quantidade)
+select p.id, a.id, 1 from produto p join produto a on a.nome = 'Chicote SUNTECH Plug Play'
+ where p.nome = 'Módulo SUNTECH PLUG PLAY'
+on conflict do nothing;
+
+-- ---------------------------------------------------------------- 4. Apagar o que não está na lista
+drop table if exists catalogo_novo, produto_apagar;
+create temporary table catalogo_novo (nome text primary key);
+insert into catalogo_novo (nome) values
+  ('Baterias Plug&Play M11'), ('Buzzer'), ('Cabo rede'), ('Camera Contexto DashCAM'), ('Camera contexto DVR'),
+  ('Camera Fadiga DVR'), ('Camera Fadiga DashCAM'), ('Camera frontal (Adas) DVR'), ('Camera frontal (Adas) DashCAM'),
+  ('Camera IP'), ('Carregador DC/DC 12V Tablet Roboflex'), ('Carregador Plug Play'), ('Cartão Memória 128GB'),
+  ('Cartão Memória 128GB MICRO SD'), ('Cartão Memória 256GB'), ('Cartão Memória 256GB MICRO SD'), ('Cartão RFID 125'),
+  ('Cartão RFID 13,56'), ('Chicote ECO 5'), ('Chicote ECO-LIGHT +S'), ('Chicote FMB920'), ('Chicote FMC130'),
+  ('Chicote FMC150'), ('Chicote FMC650'), ('Chicote Galileo 7x / 10HUB'), ('Chicote Pro4'), ('Chicote Pro5'),
+  ('Chicote SUNTECH Plug Play'), ('Chicote Trace5'), ('Chip Arqia M2M'), ('Chip Arqia Voz e Dados'), ('Chip Claro M2M'),
+  ('Chip Claro Voz e Dados'), ('Chip Vivo M2M'), ('Chip Vivo Voz e Dados'), ('Conversor locomotiva 1 Amper'),
+  ('Conversor locomotiva 15 Amper'), ('Conversor locomotiva 3 Amper'), ('DashCAM'), ('MDVR Intelbras 3404'),
+  ('MDVR Intelbras 5404'), ('Extensão cameras'), ('Extensão cameras DashCAM'), ('Galielo Rotograma falado'),
+  ('KIT CTA Comboio'), ('KIT CTA Posto fixo'), ('Leitor EasyCAN'), ('Leitor RFID 125'), ('Leitor RFID 13,56'),
+  ('Leitor RFID 13,56 / 125'), ('Módulo ECO 5'), ('Módulo ECO-LIGHT +S'), ('Módulo FMB920'), ('Módulo FMC 130'),
+  ('Módulo FMC 150'), ('Módulo FMC 650'), ('Módulo Galileo 7x / 10HUB'), ('Módulo GF Pro4'), ('Módulo HCV5'),
+  ('Módulo PRO5 Lite'), ('Módulo SUNTECH PLUG PLAY'), ('Módulo TRACE 5'), ('Monitor de alarme (SmartWach)'),
+  ('Relé Bloqueio 12 Volts'), ('Relé Bloqueio 24 Volts'), ('Relé Finder'), ('Sensor Betoneira'),
+  ('Sensor de temperatura'), ('Smartlink Carretinha'), ('Case Tablet Multilaser'), ('Case Tablet Samsung'),
+  ('Suporte Tablet Multilaser'), ('Suporte Tablet Samsung'), ('Suporte Ventosa'), ('Switch cabo rede Intelbras'),
+  ('Tablet Multilaser'), ('Tablet Samsung');
+
+create temporary table produto_apagar as
+select id, nome from produto where nome not in (select nome from catalogo_novo);
+
+do $$ declare r record; begin
+  for r in select nome from produto_apagar order by nome loop raise notice 'Apagando: %', r.nome; end loop;
+end $$;
+
+delete from item_associado where produto_id in (select id from produto_apagar) or associado_id in (select id from produto_apagar);
+delete from solicitacao_item where produto_id in (select id from produto_apagar);
+delete from pedido_compra where produto_id in (select id from produto_apagar);
+delete from movimentacao_item where produto_id in (select id from produto_apagar);
+delete from produto where id in (select id from produto_apagar);
+
+-- Conferência: tem que haver exatamente os 77 itens da lista.
+do $$ declare v_faltando text; v_total int; begin
+  select string_agg(c.nome, ', ') into v_faltando from catalogo_novo c where not exists (select 1 from produto p where p.nome = c.nome);
+  if v_faltando is not null then raise exception 'Itens da lista que não existem no banco: %', v_faltando; end if;
+  select count(*) into v_total from produto;
+  if v_total <> 77 then raise exception 'Esperava 77 itens, o banco tem %', v_total; end if;
+end $$;
+
+drop table catalogo_novo, produto_apagar;
+
+
+-- ================================================================ 0014_permissoes_funcoes
+-- No Supabase toda função nova do schema public já nasce executável por anon e authenticated.
+-- Fecha as funções internas (ex.: fn_gravar_itens) e libera só as que o app e a RLS usam
+-- (mesmo conteúdo de atualizar_permissoes_funcoes.sql).
+
+revoke execute on all functions in schema public from public, anon, authenticated;
+
+-- Lista final das funções liberadas para usuário logado. Funções que ainda não existem (atualizações
+-- seguintes não rodadas) são puladas. criar_transferencia só fica liberada enquanto o fluxo de pedidos
+-- (atualizar_fluxo_pedidos.sql) não foi instalado; depois dele ela é interna.
+do $$
+declare
+  f text;
+  lista text[] := array[
+    -- usadas pelas regras de segurança (RLS), pelas views e pelas telas
+    'public.fn_perfil()', 'public.fn_pode_ver_local(integer)', 'public.fn_pode_operar_local(integer)',
+    'public.fn_rotulo_chip(text)', 'public.fn_hoje()', 'public.fn_local_responsavel(public.solicitacao)',
+    'public.fn_pode_cancelar(public.solicitacao)', 'public.definir_visualizacao(jsonb)',
+    -- chamadas pelo app
+    'public.registrar_movimentacao(jsonb)', 'public.confirmar_recebimento(bigint)',
+    'public.cancelar_transferencia(bigint,text)', 'public.estornar_movimentacao(bigint,text)',
+    'public.criar_pedido_transferencia(jsonb)', 'public.criar_solicitacao(jsonb)', 'public.aceitar_solicitacao(bigint)',
+    'public.atender_solicitacao(bigint,jsonb)', 'public.cancelar_solicitacao(bigint)', 'public.trocar_chip(jsonb)'];
+begin
+  if to_regprocedure('public.criar_pedido_transferencia(jsonb)') is null then
+    lista := lista || 'public.criar_transferencia(jsonb)'::text;
+  end if;
+  foreach f in array lista loop
+    if to_regprocedure(f) is not null then
+      execute 'grant execute on function ' || to_regprocedure(f)::regprocedure::text || ' to authenticated';
+    end if;
+  end loop;
+end $$;
+
+-- Conferência: as funções internas não podem ficar liberadas para usuário logado nem anônimo.
+do $$ declare v text; begin
+  select string_agg(p.proname, ', ') into v
+    from pg_proc p
+   where p.pronamespace = 'public'::regnamespace
+     and (p.proname in ('fn_gravar_itens', 'fn_verificar_saldo', 'fn_travar_locais', 'fn_auditar', 'fn_novo_usuario',
+                        'fn_data_movimento', 'fn_verificar_dedicado_inteiro', 'fn_itens_dedicado', 'fn_nome_unidade',
+                        'fn_gravar_itens_pedido', 'fn_perfil_real', 'fn_simulacao', 'fn_tecnico_atual', 'fn_local_do_usuario')
+          or (p.proname = 'criar_transferencia' and to_regprocedure('public.criar_pedido_transferencia(jsonb)') is not null))
+     and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'));
+  if v is not null then raise exception 'Funções internas ainda liberadas: %', v; end if;
+end $$;
+
+
+-- ================================================================ 0015_regras_dedicado_datas
+-- Datas não podem ser futuras (hoje em São Paulo), sedex vira correios, dedicado só nasce por devolução,
+-- ajuste ou transferência, e dedicado sai inteiro (mesmo conteúdo de atualizar_regras_dedicado_datas.sql).
+
+-- ---------------------------------------------------------------- 1. Hoje em São Paulo e data da movimentação
+create or replace function public.fn_hoje() returns date
+language sql stable set search_path = public as $$
+  select (now() at time zone 'America/Sao_Paulo')::date
+$$;
+
+-- Data informada (ou hoje em São Paulo, se vier vazia); data no futuro é recusada.
+create or replace function public.fn_data_movimento(p_data text) returns date
+language plpgsql stable set search_path = public as $$
+declare v date := coalesce(nullif(p_data, '')::date, fn_hoje());
+begin
+  if v > fn_hoje() then
+    raise exception 'A data não pode ser no futuro (hoje é %)', to_char(fn_hoje(), 'DD/MM/YYYY');
+  end if;
+  return v;
+end $$;
+
+-- ---------------------------------------------------------------- 2. Meio de envio: sedex vira correios
+update movimentacao set modo_envio = 'correios' where modo_envio = 'sedex';
+alter table movimentacao drop constraint if exists movimentacao_sem_sedex;
+alter table movimentacao add constraint movimentacao_sem_sedex check (modo_envio is distinct from 'sedex');
+
+-- ---------------------------------------------------------------- 3. Dedicado vai inteiro
+-- Para cada unidade cujo dedicado esta movimentação tirou de um local, confere que não sobrou nada
+-- dela naquele local (somando todos os itens e chips). Chamada depois de fn_verificar_saldo.
+create or replace function public.fn_verificar_dedicado_inteiro(p_mov bigint) returns void
+language plpgsql security definer set search_path = public as $$
+declare r record; v_resta integer;
+begin
+  for r in
+    select distinct x.local_id, x.unidade_id from (
+      select m.local_origem_id as local_id, i.reservado_unidade_id as unidade_id
+        from movimentacao_item i join movimentacao m on m.id = i.movimentacao_id
+       where i.movimentacao_id = p_mov and m.local_origem_id is not null and i.reservado_unidade_id is not null
+         and m.tipo in ('SAIDA_CLIENTE','CONSUMO_INTERNO','DESCARTE','TRANSFERENCIA')
+      union
+      select m.local_destino_id, coalesce(i.reservar_para_unidade_id, i.reservado_unidade_id)
+        from movimentacao_item i join movimentacao m on m.id = i.movimentacao_id
+       where i.movimentacao_id = p_mov and m.local_destino_id is not null and i.quantidade < 0
+         and coalesce(i.reservar_para_unidade_id, i.reservado_unidade_id) is not null
+         and m.tipo in ('AJUSTE','TROCA_CHIP')
+    ) x
+  loop
+    select coalesce(sum(e.delta), 0) into v_resta
+      from efeito_estoque e where e.local_id = r.local_id and e.reservado_unidade_id = r.unidade_id;
+    if v_resta <> 0 then
+      raise exception 'O estoque dedicado de % em % precisa ir inteiro: faltam % itens',
+        (select c.nome || ' - ' || u.nome from unidade_cliente u join cliente c on c.id = u.cliente_id where u.id = r.unidade_id),
+        (select nome from local where id = r.local_id), v_resta
+        using errcode = 'P0001';
+    end if;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------- 4. registrar_movimentacao
+-- p: {tipo, data, local_id, unidade_id, fornecedor_id, numero_nf, finalidade, chamado_url, observacao,
+--     modo_envio, codigo_rastreio, tecnico_id,
+--     itens:[{produto_id, condicao, quantidade, reservado_unidade_id, reservar_para_unidade_id}]}
+-- Na saída para cliente o modo de envio é obrigatório; se for "tecnico", informe qual técnico leva.
+-- Quando o próprio técnico dá a baixa, o modo é "tecnico" e o técnico é ele mesmo.
+create or replace function public.registrar_movimentacao(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tipo tipo_movimento := (p->>'tipo')::tipo_movimento;
+  v_local integer := (p->>'local_id')::int;
+  v_perfil perfil_acesso := fn_perfil();
+  v_id bigint;
+  v_entrada boolean := v_tipo in ('ENTRADA_COMPRA','DEVOLUCAO_CLIENTE');
+  v_modo modo_envio := nullif(p->>'modo_envio','')::modo_envio;
+  v_tec integer := nullif(p->>'tecnico_id','')::int;
+  v_data date;
+begin
+  if v_perfil is null then raise exception 'Usuário sem acesso' using errcode = '42501'; end if;
+  if v_tipo = 'TRANSFERENCIA' then raise exception 'Use criar_transferencia' ; end if;
+  if v_local is null then raise exception 'Informe o local'; end if;
+  if not fn_pode_operar_local(v_local) then
+    raise exception 'Sem permissão para movimentar este local' using errcode = '42501';
+  end if;
+  if v_perfil = 'tecnico' and v_tipo <> 'SAIDA_CLIENTE' then
+    raise exception 'Técnico só pode registrar saída para cliente' using errcode = '42501';
+  end if;
+  if v_tipo in ('SAIDA_CLIENTE','DEVOLUCAO_CLIENTE') and nullif(p->>'unidade_id','') is null then
+    raise exception 'Informe o cliente/unidade';
+  end if;
+  if v_tipo = 'AJUSTE' and nullif(p->>'observacao','') is null then
+    raise exception 'Ajuste exige justificativa';
+  end if;
+  v_data := fn_data_movimento(p->>'data');
+
+  if v_tipo = 'SAIDA_CLIENTE' then
+    if v_perfil = 'tecnico' then
+      v_modo := 'tecnico';
+      select t.id into v_tec from tecnico t where t.usuario_id = auth.uid();
+    end if;
+    if v_modo is null then raise exception 'Informe o modo de envio'; end if;
+    if v_modo = 'sedex' then raise exception 'Sedex não é mais um meio de envio: use Correios'; end if;
+    if v_modo = 'tecnico' and v_tec is null then raise exception 'Informe o técnico que leva o material'; end if;
+    if v_modo <> 'tecnico' then v_tec := null; end if;
+  else
+    v_modo := null; v_tec := null;
+  end if;
+
+  perform fn_travar_locais(array[v_local]);
+
+  insert into movimentacao (tipo, status, data, local_origem_id, local_destino_id, unidade_id, fornecedor_id,
+                            numero_nf, finalidade, chamado_url, observacao, modo_envio, codigo_rastreio, tecnico_id,
+                            criado_por)
+  values (v_tipo, 'registrado', v_data,
+          case when v_entrada then null else v_local end,
+          case when v_entrada then v_local else null end,
+          nullif(p->>'unidade_id','')::int, nullif(p->>'fornecedor_id','')::int,
+          nullif(p->>'numero_nf',''), nullif(p->>'finalidade','')::finalidade,
+          nullif(p->>'chamado_url',''), nullif(p->>'observacao',''), v_modo,
+          case when v_tipo = 'SAIDA_CLIENTE' then nullif(p->>'codigo_rastreio','') end, v_tec,
+          auth.uid())
+  returning id into v_id;
+
+  if v_tipo = 'AJUSTE' then
+    update movimentacao set local_destino_id = v_local, local_origem_id = null where id = v_id;
+  end if;
+
+  perform fn_gravar_itens(v_id, p->'itens');
+
+  -- Dedicado nasce por devolução de cliente, ajuste ou recebimento de transferência ("Dedicado para").
+  if v_tipo not in ('DEVOLUCAO_CLIENTE','AJUSTE')
+     and exists (select 1 from movimentacao_item where movimentacao_id = v_id and reservar_para_unidade_id is not null) then
+    raise exception 'Item dedicado só nasce por devolução de cliente, ajuste de inventário ou transferência';
+  end if;
+  -- Na compra, item que já sai de um dedicado também não faz sentido (criaria dedicado na entrada).
+  if v_tipo = 'ENTRADA_COMPRA'
+     and exists (select 1 from movimentacao_item where movimentacao_id = v_id and reservado_unidade_id is not null) then
+    raise exception 'Item dedicado só nasce por devolução de cliente, ajuste de inventário ou transferência';
+  end if;
+
+  if v_tipo <> 'AJUSTE' and exists (select 1 from movimentacao_item where movimentacao_id = v_id and quantidade <= 0) then
+    raise exception 'Quantidade deve ser maior que zero';
+  end if;
+
+  if v_tipo = 'SAIDA_CLIENTE' and exists (
+       select 1 from movimentacao_item i join movimentacao m on m.id = i.movimentacao_id
+        where i.movimentacao_id = v_id and i.reservado_unidade_id is not null
+          and i.reservado_unidade_id is distinct from m.unidade_id) then
+    raise exception 'Item reservado só pode sair para a unidade reservada';
+  end if;
+
+  perform fn_verificar_saldo(array[v_local]);
+  perform fn_verificar_dedicado_inteiro(v_id);
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 5. criar_transferencia (só data, meio de envio e dedicado inteiro)
+-- p: {origem_id, destino_id, data, modo_envio, codigo_rastreio, prazo_chegada, observacao,
+--     itens:[{produto_id, condicao, quantidade, reservado_unidade_id, reservar_para_unidade_id}]}
+create or replace function public.criar_transferencia(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_origem  integer := (p->>'origem_id')::int;
+  v_destino integer := (p->>'destino_id')::int;
+  v_modo modo_envio := nullif(p->>'modo_envio','')::modo_envio;
+  v_data date;
+  v_id bigint;
+begin
+  if fn_perfil() is null or fn_perfil() = 'consulta' then
+    raise exception 'Sem permissão' using errcode = '42501';
+  end if;
+  if v_origem is null or v_destino is null or v_origem = v_destino then
+    raise exception 'Informe origem e destino diferentes';
+  end if;
+  -- Só o dono do local de origem inicia o envio.
+  if not fn_pode_operar_local(v_origem) then
+    raise exception 'Sem permissão para enviar deste local' using errcode = '42501';
+  end if;
+  if fn_perfil() = 'tecnico' then
+    raise exception 'Técnico não cria transferência; use solicitação' using errcode = '42501';
+  end if;
+  if v_modo = 'sedex' then raise exception 'Sedex não é mais um meio de envio: use Correios'; end if;
+  v_data := fn_data_movimento(p->>'data');
+
+  perform fn_travar_locais(array[v_origem, v_destino]);
+
+  insert into movimentacao (tipo, status, data, local_origem_id, local_destino_id, modo_envio, codigo_rastreio,
+                            prazo_chegada, observacao, criado_por)
+  values ('TRANSFERENCIA', 'em_transito', v_data, v_origem, v_destino,
+          v_modo, nullif(p->>'codigo_rastreio',''),
+          nullif(p->>'prazo_chegada','')::date, nullif(p->>'observacao',''), auth.uid())
+  returning id into v_id;
+
+  perform fn_gravar_itens(v_id, p->'itens');
+  if exists (select 1 from movimentacao_item where movimentacao_id = v_id and quantidade <= 0) then
+    raise exception 'Quantidade deve ser maior que zero';
+  end if;
+
+  perform fn_verificar_saldo(array[v_origem]);
+  perform fn_verificar_dedicado_inteiro(v_id);
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 6. trocar_chip (só a data)
+-- Trocar chip: converte módulos de "de" para "para" (sem chip, Claro, Vivo, Arqia), sempre no estoque livre.
+-- Instalar chip avulso baixa o chip avulso; o chip retirado volta ao estoque avulso ou é descartado.
+-- p: {local_id, produto_id, quantidade, de, para, chip_retirado ('estoque'|'descartar'), observacao, data}
+create or replace function public.trocar_chip(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_local integer := (p->>'local_id')::int; v_prod integer := (p->>'produto_id')::int;
+  v_qtd integer := (p->>'quantidade')::int;
+  v_de text := coalesce(nullif(p->>'de',''), 'novo'); v_para text := coalesce(nullif(p->>'para',''), 'novo');
+  v_dest text := coalesce(nullif(p->>'chip_retirado',''), 'estoque');
+  v_id bigint; v_chip_de integer; v_chip_para integer; v_obs text := nullif(p->>'observacao','');
+  v_data date;
+begin
+  if fn_perfil()::text not in ('admin','operador') then
+    raise exception 'Só administrador e operador trocam chip' using errcode = '42501';
+  end if;
+  if v_local is null or not fn_pode_operar_local(v_local) then
+    raise exception 'Sem permissão para movimentar este local' using errcode = '42501';
+  end if;
+  if not exists (select 1 from produto where id = v_prod and usa_chip) then raise exception 'Este item não usa chip'; end if;
+  if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
+  if v_de not in ('novo','claro','vivo','arquia') or v_para not in ('novo','claro','vivo','arquia') then
+    raise exception 'Chip inválido';
+  end if;
+  if v_de = v_para then raise exception 'O chip de origem e o de destino são iguais'; end if;
+  if v_dest not in ('estoque','descartar') then raise exception 'chip_retirado deve ser estoque ou descartar'; end if;
+  if v_dest = 'descartar' and v_de <> 'novo' and v_obs is null then
+    raise exception 'Descartar chip exige o motivo (ex.: módulo não comunicou)';
+  end if;
+  v_data := fn_data_movimento(p->>'data');
+  if v_de <> 'novo' then select id into v_chip_de from produto where chip_tipo = v_de and ativo order by id limit 1;
+    if v_chip_de is null then raise exception 'Não há item de chip avulso cadastrado para %', fn_rotulo_chip(v_de); end if; end if;
+  if v_para <> 'novo' then select id into v_chip_para from produto where chip_tipo = v_para and ativo order by id limit 1;
+    if v_chip_para is null then raise exception 'Não há item de chip avulso cadastrado para %', fn_rotulo_chip(v_para); end if; end if;
+
+  perform fn_travar_locais(array[v_local]);
+  insert into movimentacao (tipo, status, data, local_destino_id, observacao, criado_por)
+  values ('TROCA_CHIP', 'registrado', v_data, v_local,
+          concat_ws(E'\n', fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) ||
+                    case when v_de <> 'novo' and v_dest = 'descartar' then ' (chip retirado descartado)' else '' end, v_obs), auth.uid())
+  returning id into v_id;
+  insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
+    (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  if v_chip_de is not null and v_dest = 'estoque' then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_de, 'novo', v_qtd);
+  end if;
+  if v_chip_para is not null then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_para, 'novo', -v_qtd);
+  end if;
+  perform fn_verificar_saldo(array[v_local]);
+  perform fn_verificar_dedicado_inteiro(v_id);
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 7. Permissões das funções novas
+-- (no Supabase função nova já nasce liberada para anon e authenticated)
+revoke execute on function public.fn_data_movimento(text), public.fn_verificar_dedicado_inteiro(bigint)
+  from public, anon, authenticated;
+revoke execute on function public.fn_hoje() from public, anon;
+grant execute on function public.fn_hoje() to authenticated;
+revoke execute on function public.registrar_movimentacao(jsonb), public.criar_transferencia(jsonb), public.trocar_chip(jsonb)
+  from public, anon;
+grant execute on function public.registrar_movimentacao(jsonb), public.criar_transferencia(jsonb), public.trocar_chip(jsonb)
+  to authenticated;
+
+
+
+-- ================================================================ 0016_fluxo_pedidos
+-- Transferência vira pedido (origem aceita e envia), solicitação só do agendamento para cliente
+-- (mesmo conteúdo de atualizar_fluxo_pedidos.sql).
+
+-- ---------------------------------------------------------------- 1. Tabelas
+alter table solicitacao add column if not exists tipo text not null default 'legado';
+alter table solicitacao drop constraint if exists solicitacao_tipo_valido;
+alter table solicitacao add constraint solicitacao_tipo_valido
+  check (tipo in ('transferencia', 'enviar_cliente', 'enviar_dedicado', 'retirar_dedicado', 'legado'));
+
+-- Cada linha do pedido ganha um id (para escolher o chip no envio) e o chip pedido (nulo = escolher no envio).
+alter table solicitacao_item add column if not exists id bigint generated by default as identity;
+create unique index if not exists solicitacao_item_id_unico on solicitacao_item (id);
+alter table solicitacao_item add column if not exists condicao condicao_item;
+drop index if exists solicitacao_item_unico;
+create unique index solicitacao_item_unico
+  on solicitacao_item (solicitacao_id, produto_id, condicao,
+                       coalesce(reservar_para_unidade_id, 0), coalesce(reservado_unidade_id, 0)) nulls not distinct;
+
+-- Dedicados que um pedido de transferência leva inteiros (todo o saldo da unidade no estoque de origem).
+create table if not exists solicitacao_dedicado (
+  solicitacao_id bigint  not null references solicitacao(id),
+  unidade_id     integer not null references unidade_cliente(id),
+  primary key (solicitacao_id, unidade_id)
+);
+alter table solicitacao_dedicado enable row level security;
+drop policy if exists sol_ded_ler on solicitacao_dedicado;
+create policy sol_ded_ler on solicitacao_dedicado for select using (
+  exists (select 1 from solicitacao s where s.id = solicitacao_id));
+revoke all on solicitacao_dedicado from public, anon, authenticated;
+grant select on solicitacao_dedicado to authenticated;
+
+-- O técnico vê também os pedidos de transferência para o carro dele (ele confirma o recebimento).
+drop policy if exists sol_ler on solicitacao;
+create policy sol_ler on solicitacao for select using (
+  tecnico_id = auth.uid()
+  or fn_perfil()::text in ('admin','operador','consulta','agendamento')
+  or (fn_perfil()::text = 'tecnico' and destino_id is not null and fn_pode_ver_local(destino_id)));
+
+-- ---------------------------------------------------------------- 2. Funções internas
+-- Todo o saldo dedicado de uma unidade num local, como itens de movimentação (todos os itens e chips).
+create or replace function public.fn_itens_dedicado(p_local integer, p_unidade integer) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('produto_id', produto_id, 'condicao', condicao, 'quantidade', q,
+                                               'reservado_unidade_id', p_unidade) order by produto_id, condicao), '[]'::jsonb)
+    from (select e.produto_id, e.condicao, sum(e.delta) as q
+            from efeito_estoque e
+           where e.local_id = p_local and e.reservado_unidade_id = p_unidade
+           group by 1, 2 having sum(e.delta) > 0) x
+$$;
+
+create or replace function public.fn_nome_unidade(p_unidade integer) returns text
+language sql stable security definer set search_path = public as $$
+  select c.nome || ' - ' || u.nome from unidade_cliente u join cliente c on c.id = u.cliente_id where u.id = p_unidade
+$$;
+
+-- Grava as linhas de um pedido. p_itens: [{produto_id, quantidade, condicao?, reservar_para_unidade_id?}]
+create or replace function public.fn_gravar_itens_pedido(p_sol bigint, p_itens jsonb, p_dedicado_para boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare it jsonb; v_pid integer; v_chip text; v_qtd integer;
+begin
+  for it in select * from jsonb_array_elements(coalesce(p_itens, '[]'::jsonb)) loop
+    v_pid := nullif(it->>'produto_id','')::int;
+    v_qtd := nullif(it->>'quantidade','')::int;
+    if v_pid is null or not exists (select 1 from produto where id = v_pid) then raise exception 'Item inválido'; end if;
+    if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
+    if nullif(it->>'reservado_unidade_id','') is not null then
+      raise exception 'Para levar estoque dedicado, escolha a unidade em dedicados (vai o dedicado inteiro)';
+    end if;
+    if nullif(it->>'reservar_para_unidade_id','') is not null and not p_dedicado_para then
+      raise exception 'Este pedido não aceita "Dedicado para"';
+    end if;
+    v_chip := case when exists (select 1 from produto where id = v_pid and usa_chip) then nullif(it->>'condicao','')
+                   else 'novo' end;
+    if v_chip is not null and v_chip not in ('novo','claro','vivo','arquia') then raise exception 'Chip inválido: %', v_chip; end if;
+    insert into solicitacao_item (solicitacao_id, produto_id, quantidade, condicao, reservar_para_unidade_id)
+    values (p_sol, v_pid, v_qtd, v_chip::condicao_item, nullif(it->>'reservar_para_unidade_id','')::int);
+  end loop;
+end $$;
+
+-- Local que dá andamento ao pedido: a origem; no retirar_dedicado, o destino.
+create or replace function public.fn_local_responsavel(s solicitacao) returns integer
+language sql stable set search_path = public as $$
+  select case when s.tipo = 'retirar_dedicado' then s.destino_id else s.origem_id end
+$$;
+
+-- ---------------------------------------------------------------- 3. Criar pedido de transferência
+-- p: {origem_id, destino_id, chamado_url, observacao,
+--     itens:[{produto_id, quantidade, condicao?, reservar_para_unidade_id?}], dedicados:[unidade_id,...]}
+create or replace function public.criar_pedido_transferencia(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_orig integer := nullif(p->>'origem_id','')::int; v_dest integer := nullif(p->>'destino_id','')::int;
+  v_id bigint; v_un integer;
+begin
+  if fn_perfil()::text not in ('admin','operador') or fn_perfil() is null then
+    raise exception 'Só administrador e operador criam pedido de transferência' using errcode = '42501';
+  end if;
+  if v_orig is null or v_dest is null then raise exception 'Informe de onde sai e para onde vai'; end if;
+  if v_orig = v_dest then raise exception 'Origem e destino devem ser diferentes'; end if;
+  if not exists (select 1 from local where id = v_orig and tipo = 'estoque') then raise exception 'A origem deve ser um estoque'; end if;
+  if not exists (select 1 from local where id = v_dest) then raise exception 'Destino inválido'; end if;
+  if coalesce(jsonb_array_length(nullif(p->'itens','null'::jsonb)), 0) = 0
+     and coalesce(jsonb_array_length(nullif(p->'dedicados','null'::jsonb)), 0) = 0 then
+    raise exception 'Informe ao menos um item ou um dedicado';
+  end if;
+
+  insert into solicitacao (tipo, tecnico_id, origem_id, destino_id, chamado_url, observacao)
+  values ('transferencia', auth.uid(), v_orig, v_dest, nullif(p->>'chamado_url',''), nullif(p->>'observacao',''))
+  returning id into v_id;
+  perform fn_gravar_itens_pedido(v_id, p->'itens', true);
+  for v_un in select distinct (x #>> '{}')::int from jsonb_array_elements(coalesce(nullif(p->'dedicados','null'::jsonb), '[]'::jsonb)) x loop
+    if fn_itens_dedicado(v_orig, v_un) = '[]'::jsonb then
+      raise exception 'Não há estoque dedicado de % em %', coalesce(fn_nome_unidade(v_un), 'unidade ' || v_un),
+        (select nome from local where id = v_orig);
+    end if;
+    insert into solicitacao_dedicado (solicitacao_id, unidade_id) values (v_id, v_un);
+  end loop;
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 4. Criar solicitação (só agendamento)
+-- enviar_cliente:   {tipo, origem_id, unidade_id, chamado_url, observacao, itens:[{produto_id, quantidade, condicao?}]}
+-- enviar_dedicado:  {tipo, origem_id, unidade_id, chamado_url, observacao}
+-- retirar_dedicado: {tipo, destino_id, unidade_id, chamado_url, observacao, itens:[{produto_id, quantidade, condicao?}]}
+create or replace function public.criar_solicitacao(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tipo text := nullif(p->>'tipo',''); v_un integer := nullif(p->>'unidade_id','')::int;
+  v_orig integer; v_dest integer; v_id bigint;
+  v_n integer := coalesce(jsonb_array_length(nullif(p->'itens','null'::jsonb)), 0);
+  v_chamado text := nullif(btrim(p->>'chamado_url'), '');
+begin
+  if fn_perfil() is null or fn_perfil()::text <> 'agendamento' then
+    raise exception 'Só o agendamento cria solicitação (transferência entre estoques é pedido de transferência)' using errcode = '42501';
+  end if;
+  if v_tipo is null or v_tipo not in ('enviar_cliente','enviar_dedicado','retirar_dedicado') then
+    raise exception 'Tipo de solicitação inválido: use enviar_cliente, enviar_dedicado ou retirar_dedicado';
+  end if;
+  if v_un is null or not exists (select 1 from unidade_cliente where id = v_un) then raise exception 'Informe o cliente'; end if;
+
+  if v_tipo in ('enviar_cliente','enviar_dedicado') then
+    v_orig := nullif(p->>'origem_id','')::int;
+    if v_orig is null or not exists (select 1 from local where id = v_orig and tipo = 'estoque') then
+      raise exception 'Informe o estoque de onde sai';
+    end if;
+  else
+    v_dest := nullif(p->>'destino_id','')::int;
+    if v_dest is null or not exists (select 1 from local where id = v_dest and tipo = 'estoque') then
+      raise exception 'Informe o estoque para onde vai';
+    end if;
+  end if;
+  if v_tipo = 'enviar_dedicado' then
+    if v_n > 0 then raise exception 'Enviar dedicado leva o dedicado inteiro: não informe itens'; end if;
+    if fn_itens_dedicado(v_orig, v_un) = '[]'::jsonb then
+      raise exception 'Não há estoque dedicado de % em %', fn_nome_unidade(v_un), (select nome from local where id = v_orig);
+    end if;
+  elsif v_n = 0 then
+    raise exception 'Informe ao menos um item';
+  end if;
+  -- Enviar e retirar dedicado exigem o link do chamado (Jira); nos outros tipos ele é opcional.
+  if v_tipo in ('enviar_dedicado','retirar_dedicado') then
+    if v_chamado is null then
+      raise exception 'Informe o link do chamado: é obrigatório para enviar e retirar dedicado';
+    end if;
+    if v_chamado !~* '^https?://' then
+      raise exception 'O link do chamado deve começar com http:// ou https://';
+    end if;
+  end if;
+
+  insert into solicitacao (tipo, tecnico_id, origem_id, destino_id, unidade_id, chamado_url, observacao)
+  values (v_tipo, auth.uid(), v_orig, v_dest, v_un, v_chamado, nullif(p->>'observacao',''))
+  returning id into v_id;
+  perform fn_gravar_itens_pedido(v_id, p->'itens', false);
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 5. Aceitar
+create or replace function public.aceitar_solicitacao(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+declare s solicitacao; v_resp integer;
+begin
+  if fn_perfil()::text not in ('admin','operador') or fn_perfil() is null then
+    raise exception 'Só administrador e operador aceitam solicitações' using errcode = '42501';
+  end if;
+  select * into s from solicitacao where id = p_id for update;
+  if not found then raise exception 'Solicitação não encontrada'; end if;
+  if s.status::text <> 'aberta' then raise exception 'Só dá para aceitar solicitação aberta'; end if;
+  v_resp := fn_local_responsavel(s);
+  if not fn_pode_operar_local(v_resp) then
+    raise exception 'Só quem opera o estoque de % (%) dá andamento a esta solicitação',
+      case when s.tipo = 'retirar_dedicado' then 'destino' else 'origem' end,
+      coalesce((select nome from local where id = v_resp), '?') using errcode = '42501';
+  end if;
+  update solicitacao set status = 'em_producao', prazo_producao = now() + interval '1 day' where id = p_id;
+end $$;
+
+-- ---------------------------------------------------------------- 6. Atender (enviar, entregar ou registrar a chegada)
+-- transferencia:    {data, modo_envio, codigo_rastreio, prazo_chegada, observacao, chips}  -> TRANSFERENCIA em trânsito
+-- enviar_cliente /
+-- enviar_dedicado:  {data, modo_envio, tecnico_id, codigo_rastreio, observacao, chips}     -> SAIDA_CLIENTE
+-- retirar_dedicado: {data, observacao, chips}                                              -> DEVOLUCAO_CLIENTE dedicada
+-- legado:           como antes (transferência origem -> destino com os itens do pedido)
+-- chips: {"<solicitacao_item.id>": "novo"|"claro"|"vivo"|"arquia"}; sem escolha vale o chip do item (nulo = sem chip).
+create or replace function public.atender_solicitacao(p_id bigint, p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  s solicitacao; v_mov bigint; v_itens jsonb; v_resp integer; v_un integer; v_ded jsonb;
+  v_obs text := coalesce(nullif(p->>'observacao',''), null);
+begin
+  if fn_perfil()::text not in ('admin','operador') or fn_perfil() is null then
+    raise exception 'Só administrador e operador atendem solicitações' using errcode = '42501';
+  end if;
+  select * into s from solicitacao where id = p_id for update;
+  if not found then raise exception 'Solicitação não encontrada'; end if;
+  if s.status::text not in ('aberta','em_producao') then raise exception 'Solicitação já encerrada'; end if;
+  if s.tipo <> 'legado' and s.status::text <> 'em_producao' then
+    raise exception 'Aceite a solicitação antes de atender';
+  end if;
+  v_resp := fn_local_responsavel(s);
+  if not fn_pode_operar_local(v_resp) then
+    raise exception 'Só quem opera o estoque de % (%) dá andamento a esta solicitação',
+      case when s.tipo = 'retirar_dedicado' then 'destino' else 'origem' end,
+      coalesce((select nome from local where id = v_resp), '?') using errcode = '42501';
+  end if;
+
+  if s.tipo = 'legado' then
+    -- Pedido antigo: transferência com os itens do pedido. Chip: pelo id da linha ou pela chave antiga
+    -- "<produto_id>|<unidade dedicada ou vazio>".
+    if s.origem_id is null or s.destino_id is null then raise exception 'Pedido sem origem ou destino'; end if;
+    select jsonb_agg(jsonb_build_object('produto_id', produto_id, 'quantidade', quantidade,
+                                        'reservar_para_unidade_id', reservar_para_unidade_id,
+                                        'reservado_unidade_id', reservado_unidade_id,
+                                        'condicao', coalesce(p->'chips'->>(id::text),
+                                                             p->'chips'->>(produto_id::text || '|' || coalesce(reservar_para_unidade_id::text, '')),
+                                                             condicao::text, 'novo')))
+      into v_itens from solicitacao_item where solicitacao_id = p_id;
+    v_mov := criar_transferencia(p || jsonb_build_object('origem_id', s.origem_id, 'destino_id', s.destino_id, 'itens', v_itens));
+
+  else
+    select coalesce(jsonb_agg(jsonb_build_object('produto_id', produto_id, 'quantidade', quantidade,
+                                        'reservar_para_unidade_id', case when s.tipo = 'retirar_dedicado' then s.unidade_id
+                                                                         else reservar_para_unidade_id end,
+                                        'condicao', coalesce(p->'chips'->>(id::text), condicao::text, 'novo'))), '[]'::jsonb)
+      into v_itens from solicitacao_item where solicitacao_id = p_id;
+
+    if s.tipo = 'transferencia' then
+      for v_un in select unidade_id from solicitacao_dedicado where solicitacao_id = p_id order by unidade_id loop
+        v_ded := fn_itens_dedicado(s.origem_id, v_un);
+        if v_ded = '[]'::jsonb then
+          raise exception 'Não há mais estoque dedicado de % em %', fn_nome_unidade(v_un), (select nome from local where id = s.origem_id);
+        end if;
+        v_itens := v_itens || v_ded;
+      end loop;
+      if nullif(p->>'modo_envio','') is null then raise exception 'Informe o meio de envio'; end if;
+      v_mov := criar_transferencia(jsonb_build_object(
+        'origem_id', s.origem_id, 'destino_id', s.destino_id, 'data', p->>'data', 'modo_envio', p->>'modo_envio',
+        'codigo_rastreio', p->>'codigo_rastreio', 'prazo_chegada', p->>'prazo_chegada',
+        'observacao', concat_ws(E'\n', s.observacao, v_obs), 'itens', v_itens));
+      update movimentacao set chamado_url = s.chamado_url where id = v_mov;
+
+    elsif s.tipo in ('enviar_cliente','enviar_dedicado') then
+      if s.tipo = 'enviar_dedicado' then
+        v_itens := fn_itens_dedicado(s.origem_id, s.unidade_id);
+        if v_itens = '[]'::jsonb then
+          raise exception 'Não há mais estoque dedicado de % em %', fn_nome_unidade(s.unidade_id), (select nome from local where id = s.origem_id);
+        end if;
+      end if;
+      v_mov := registrar_movimentacao(jsonb_build_object(
+        'tipo', 'SAIDA_CLIENTE', 'local_id', s.origem_id, 'unidade_id', s.unidade_id, 'data', p->>'data',
+        'modo_envio', p->>'modo_envio', 'tecnico_id', p->>'tecnico_id', 'codigo_rastreio', p->>'codigo_rastreio',
+        'chamado_url', s.chamado_url, 'observacao', concat_ws(E'\n', s.observacao, v_obs), 'itens', v_itens));
+
+    else  -- retirar_dedicado: o material chegou ao destino; entra como devolução já dedicada à unidade
+      v_mov := registrar_movimentacao(jsonb_build_object(
+        'tipo', 'DEVOLUCAO_CLIENTE', 'local_id', s.destino_id, 'unidade_id', s.unidade_id, 'data', p->>'data',
+        'chamado_url', s.chamado_url, 'observacao', concat_ws(E'\n', s.observacao, v_obs), 'itens', v_itens));
+    end if;
+  end if;
+
+  update solicitacao set status = 'atendida', movimentacao_id = v_mov where id = p_id;
+  return v_mov;
+end $$;
+
+-- ---------------------------------------------------------------- 6b. Cancelar
+-- Aberta ou em produção: o administrador ou o operador do local responsável (a origem; no retirar_dedicado,
+-- o destino), a mesma regra de aceitar e atender. O agendamento cancela a própria solicitação enquanto aberta.
+-- Depois de enviado/atendido não cancela (a transferência em trânsito usa cancelar_transferencia).
+create or replace function public.fn_pode_cancelar(s solicitacao) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(s.status::text in ('aberta','em_producao')
+    and ((fn_perfil()::text in ('admin','operador') and fn_pode_operar_local(fn_local_responsavel(s)))
+         or (s.status::text = 'aberta' and fn_perfil()::text = 'agendamento' and s.tecnico_id = auth.uid())), false)
+$$;
+
+create or replace function public.cancelar_solicitacao(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+declare s solicitacao; v_resp integer;
+begin
+  select * into s from solicitacao where id = p_id for update;
+  if not found or s.status::text not in ('aberta','em_producao') then raise exception 'Solicitação não está em andamento'; end if;
+  if not fn_pode_cancelar(s) then
+    if s.status::text = 'em_producao' and fn_perfil()::text not in ('admin','operador') then
+      raise exception 'Depois de aceita, só administrador e operador cancelam' using errcode = '42501';
+    end if;
+    v_resp := fn_local_responsavel(s);
+    raise exception 'Só o administrador ou quem opera o estoque de % (%) cancela esta solicitação',
+      case when s.tipo = 'retirar_dedicado' then 'destino' else 'origem' end,
+      coalesce((select nome from local where id = v_resp), '?') using errcode = '42501';
+  end if;
+  update solicitacao set status = 'cancelada' where id = p_id;
+end $$;
+
+-- ---------------------------------------------------------------- 7. View para a tela: situação e o que o usuário pode fazer
+create or replace view solicitacao_acoes with (security_invoker = true) as
+select s.id, s.tipo, s.status::text as status,
+       case
+         when s.status::text in ('aberta','em_producao','cancelada') then s.status::text
+         when s.tipo in ('transferencia','legado') then
+           coalesce((select case m.status::text when 'em_transito' then 'em_transito' when 'recebido' then 'recebido'
+                                                when 'cancelado' then 'cancelada' else 'atendida' end
+                       from movimentacao m where m.id = s.movimentacao_id), 'atendida')
+         else 'atendida'
+       end as situacao,
+       (s.status::text = 'aberta' and fn_perfil()::text in ('admin','operador')
+          and fn_pode_operar_local(fn_local_responsavel(s))) as pode_aceitar,
+       ((s.status::text = 'em_producao' or (s.tipo = 'legado' and s.status::text = 'aberta'))
+          and fn_perfil()::text in ('admin','operador') and fn_pode_operar_local(fn_local_responsavel(s))) as pode_atender,
+       fn_pode_cancelar(s) as pode_cancelar
+  from solicitacao s;
+revoke all on solicitacao_acoes from public, anon, authenticated;
+grant select on solicitacao_acoes to authenticated;
+
+-- ---------------------------------------------------------------- 8. Permissões
+-- Não existe mais envio direto: criar_transferencia só roda por dentro de atender_solicitacao.
+revoke execute on function public.criar_transferencia(jsonb) from public, anon, authenticated;
+revoke execute on function public.fn_itens_dedicado(integer, integer), public.fn_nome_unidade(integer),
+  public.fn_gravar_itens_pedido(bigint, jsonb, boolean)
+  from public, anon, authenticated;
+revoke execute on function public.fn_local_responsavel(solicitacao) from public, anon;
+grant execute on function public.fn_local_responsavel(solicitacao) to authenticated;   -- usada pela view
+revoke execute on function public.fn_pode_cancelar(solicitacao), public.cancelar_solicitacao(bigint) from public, anon;
+grant execute on function public.fn_pode_cancelar(solicitacao), public.cancelar_solicitacao(bigint) to authenticated;
+revoke execute on function public.criar_pedido_transferencia(jsonb), public.criar_solicitacao(jsonb),
+  public.aceitar_solicitacao(bigint), public.atender_solicitacao(bigint, jsonb) from public, anon;
+grant execute on function public.criar_pedido_transferencia(jsonb), public.criar_solicitacao(jsonb),
+  public.aceitar_solicitacao(bigint), public.atender_solicitacao(bigint, jsonb) to authenticated;
+
+
+-- ================================================================ 0017_ver_como
+-- "Ver como" do administrador: perfil e local simulados valem de verdade (mesmo conteúdo de atualizar_ver_como.sql).
+
+-- ---------------------------------------------------------------- 1. Onde fica a simulação
+create table if not exists visualizacao (
+  usuario_id    uuid primary key references usuario(id),
+  perfil        perfil_acesso not null check (perfil::text <> 'admin'),
+  local_id      integer references local(id),
+  tecnico_id    integer references tecnico(id),
+  atualizado_em timestamptz not null default now()
+);
+alter table visualizacao enable row level security;
+drop policy if exists visualizacao_ler on visualizacao;
+create policy visualizacao_ler on visualizacao for select using (usuario_id = auth.uid());
+revoke all on visualizacao from public, anon, authenticated;
+grant select on visualizacao to authenticated;
+
+-- ---------------------------------------------------------------- 2. Perfil real e perfil efetivo
+-- Perfil gravado na tabela usuario (sem simulação).
+create or replace function public.fn_perfil_real() returns perfil_acesso
+language sql stable security definer set search_path = public as $$
+  select perfil from usuario where id = auth.uid() and ativo
+$$;
+
+-- Perfil efetivo: o simulado, se o usuário for administrador de verdade e estiver simulando; senão, o real.
+create or replace function public.fn_perfil() returns perfil_acesso
+language sql stable security definer set search_path = public as $$
+  select case when r.perfil = 'admin'
+              then coalesce((select v.perfil from visualizacao v where v.usuario_id = auth.uid()), r.perfil)
+              else r.perfil end
+    from (select fn_perfil_real() as perfil) r
+$$;
+
+-- A simulação vale (administrador real com uma linha em visualizacao)?
+create or replace function public.fn_simulacao() returns visualizacao
+language sql stable security definer set search_path = public as $$
+  select v.* from visualizacao v where v.usuario_id = auth.uid() and fn_perfil_real() = 'admin'
+$$;
+
+-- Técnico do login (tecnico.usuario_id) ou o técnico simulado.
+create or replace function public.fn_tecnico_atual() returns integer
+language sql stable security definer set search_path = public as $$
+  select case when (fn_simulacao()).usuario_id is not null then (fn_simulacao()).tecnico_id
+              else (select t.id from tecnico t where t.usuario_id = auth.uid() order by t.id limit 1) end
+$$;
+
+-- O local está entre os estoques do usuário (usuario_local) ou é o estoque simulado?
+create or replace function public.fn_local_do_usuario(p_local integer) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case when (fn_simulacao()).usuario_id is not null then (fn_simulacao()).local_id is not distinct from p_local
+              else exists (select 1 from usuario_local ul where ul.usuario_id = auth.uid() and ul.local_id = p_local) end
+$$;
+
+-- ---------------------------------------------------------------- 3. Regras de local com o perfil efetivo
+create or replace function public.fn_pode_ver_local(p_local integer) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(
+    case fn_perfil()::text
+      when 'admin'       then true
+      when 'consulta'    then true
+      when 'agendamento' then true
+      when 'operador'    then fn_local_do_usuario(p_local)
+      when 'tecnico'     then exists (select 1 from local l where l.id = p_local and l.tecnico_id = fn_tecnico_atual())
+    end, false)
+$$;
+
+create or replace function public.fn_pode_operar_local(p_local integer) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(
+    case fn_perfil()::text
+      when 'admin'    then true
+      when 'operador' then fn_local_do_usuario(p_local)
+      when 'tecnico'  then exists (select 1 from local l where l.id = p_local and l.tecnico_id = fn_tecnico_atual())
+    end, false)
+$$;
+
+-- ---------------------------------------------------------------- 4. registrar_movimentacao: técnico do login ou o simulado
+create or replace function public.registrar_movimentacao(p jsonb) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare
+  v_tipo tipo_movimento := (p->>'tipo')::tipo_movimento;
+  v_local integer := (p->>'local_id')::int;
+  v_perfil perfil_acesso := fn_perfil();
+  v_id bigint;
+  v_entrada boolean := v_tipo in ('ENTRADA_COMPRA','DEVOLUCAO_CLIENTE');
+  v_modo modo_envio := nullif(p->>'modo_envio','')::modo_envio;
+  v_tec integer := nullif(p->>'tecnico_id','')::int;
+  v_data date;
+begin
+  if v_perfil is null then raise exception 'Usuário sem acesso' using errcode = '42501'; end if;
+  if v_tipo = 'TRANSFERENCIA' then raise exception 'Use criar_transferencia' ; end if;
+  if v_local is null then raise exception 'Informe o local'; end if;
+  if not fn_pode_operar_local(v_local) then
+    raise exception 'Sem permissão para movimentar este local' using errcode = '42501';
+  end if;
+  if v_perfil = 'tecnico' and v_tipo <> 'SAIDA_CLIENTE' then
+    raise exception 'Técnico só pode registrar saída para cliente' using errcode = '42501';
+  end if;
+  if v_tipo in ('SAIDA_CLIENTE','DEVOLUCAO_CLIENTE') and nullif(p->>'unidade_id','') is null then
+    raise exception 'Informe o cliente/unidade';
+  end if;
+  if v_tipo = 'AJUSTE' and nullif(p->>'observacao','') is null then
+    raise exception 'Ajuste exige justificativa';
+  end if;
+  v_data := fn_data_movimento(p->>'data');
+
+  if v_tipo = 'SAIDA_CLIENTE' then
+    if v_perfil = 'tecnico' then
+      v_modo := 'tecnico';
+      v_tec := fn_tecnico_atual();   -- o técnico do login (ou o simulado pelo administrador)
+    end if;
+    if v_modo is null then raise exception 'Informe o modo de envio'; end if;
+    if v_modo = 'sedex' then raise exception 'Sedex não é mais um meio de envio: use Correios'; end if;
+    if v_modo = 'tecnico' and v_tec is null then raise exception 'Informe o técnico que leva o material'; end if;
+    if v_modo <> 'tecnico' then v_tec := null; end if;
+  else
+    v_modo := null; v_tec := null;
+  end if;
+
+  perform fn_travar_locais(array[v_local]);
+
+  insert into movimentacao (tipo, status, data, local_origem_id, local_destino_id, unidade_id, fornecedor_id,
+                            numero_nf, finalidade, chamado_url, observacao, modo_envio, codigo_rastreio, tecnico_id,
+                            criado_por)
+  values (v_tipo, 'registrado', v_data,
+          case when v_entrada then null else v_local end,
+          case when v_entrada then v_local else null end,
+          nullif(p->>'unidade_id','')::int, nullif(p->>'fornecedor_id','')::int,
+          nullif(p->>'numero_nf',''), nullif(p->>'finalidade','')::finalidade,
+          nullif(p->>'chamado_url',''), nullif(p->>'observacao',''), v_modo,
+          case when v_tipo = 'SAIDA_CLIENTE' then nullif(p->>'codigo_rastreio','') end, v_tec,
+          auth.uid())
+  returning id into v_id;
+
+  if v_tipo = 'AJUSTE' then
+    update movimentacao set local_destino_id = v_local, local_origem_id = null where id = v_id;
+  end if;
+
+  perform fn_gravar_itens(v_id, p->'itens');
+
+  -- Dedicado nasce por devolução de cliente, ajuste ou recebimento de transferência ("Dedicado para").
+  if v_tipo not in ('DEVOLUCAO_CLIENTE','AJUSTE')
+     and exists (select 1 from movimentacao_item where movimentacao_id = v_id and reservar_para_unidade_id is not null) then
+    raise exception 'Item dedicado só nasce por devolução de cliente, ajuste de inventário ou transferência';
+  end if;
+  -- Na compra, item que já sai de um dedicado também não faz sentido (criaria dedicado na entrada).
+  if v_tipo = 'ENTRADA_COMPRA'
+     and exists (select 1 from movimentacao_item where movimentacao_id = v_id and reservado_unidade_id is not null) then
+    raise exception 'Item dedicado só nasce por devolução de cliente, ajuste de inventário ou transferência';
+  end if;
+
+  if v_tipo <> 'AJUSTE' and exists (select 1 from movimentacao_item where movimentacao_id = v_id and quantidade <= 0) then
+    raise exception 'Quantidade deve ser maior que zero';
+  end if;
+
+  if v_tipo = 'SAIDA_CLIENTE' and exists (
+       select 1 from movimentacao_item i join movimentacao m on m.id = i.movimentacao_id
+        where i.movimentacao_id = v_id and i.reservado_unidade_id is not null
+          and i.reservado_unidade_id is distinct from m.unidade_id) then
+    raise exception 'Item reservado só pode sair para a unidade reservada';
+  end if;
+
+  perform fn_verificar_saldo(array[v_local]);
+  perform fn_verificar_dedicado_inteiro(v_id);
+  return v_id;
+end $$;
+
+-- ---------------------------------------------------------------- 5. Ativar e voltar
+-- p: {perfil: null|'admin'|'operador'|'tecnico'|'consulta'|'agendamento', local_id, tecnico_id}
+--   operador e agendamento: local_id (estoque fixo) obrigatório; consulta: local_id opcional (só informativo);
+--   tecnico: tecnico_id (tecnico.id) obrigatório e com estoque (carro); o local passa a ser a base dele.
+--   perfil nulo ou 'admin': volta a administrador.
+create or replace function public.definir_visualizacao(p jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_perfil text := nullif(btrim(coalesce(p->>'perfil','')), '');
+  v_local integer := nullif(p->>'local_id','')::int;
+  v_tec integer := nullif(p->>'tecnico_id','')::int;
+begin
+  if fn_perfil_real() is distinct from 'admin' then
+    raise exception 'Só o administrador pode ver como outro perfil' using errcode = '42501';
+  end if;
+
+  if v_perfil is null or v_perfil = 'admin' then
+    delete from visualizacao where usuario_id = auth.uid();
+    insert into auditoria (usuario_id, tabela, registro_id, acao, depois)
+    values (auth.uid(), 'visualizacao', auth.uid()::text, 'VER_COMO', jsonb_build_object('perfil', 'admin'));
+    return;
+  end if;
+
+  if v_perfil not in ('operador','tecnico','consulta','agendamento') then
+    raise exception 'Perfil inválido: use operador, tecnico, consulta ou agendamento';
+  end if;
+  if v_perfil in ('operador','agendamento') then
+    if v_local is null or not exists (select 1 from local where id = v_local and tipo = 'estoque') then
+      raise exception 'Escolha o estoque fixo (por exemplo, Nova Lima ou SBC)';
+    end if;
+    v_tec := null;
+  elsif v_perfil = 'tecnico' then
+    if v_tec is null or not exists (select 1 from tecnico where id = v_tec) then raise exception 'Escolha o técnico'; end if;
+    if not exists (select 1 from local where tecnico_id = v_tec) then
+      raise exception 'Este técnico não tem estoque (carro) cadastrado';
+    end if;
+    select l.base_id into v_local from local l where l.tecnico_id = v_tec order by l.id limit 1;
+  else  -- consulta
+    if v_local is not null and not exists (select 1 from local where id = v_local and tipo = 'estoque') then
+      raise exception 'Escolha um estoque fixo';
+    end if;
+    v_tec := null;
+  end if;
+
+  insert into visualizacao (usuario_id, perfil, local_id, tecnico_id, atualizado_em)
+  values (auth.uid(), v_perfil::perfil_acesso, v_local, v_tec, now())
+  on conflict (usuario_id) do update
+    set perfil = excluded.perfil, local_id = excluded.local_id, tecnico_id = excluded.tecnico_id, atualizado_em = now();
+  insert into auditoria (usuario_id, tabela, registro_id, acao, depois)
+  values (auth.uid(), 'visualizacao', auth.uid()::text, 'VER_COMO',
+          jsonb_build_object('perfil', v_perfil, 'local_id', v_local, 'tecnico_id', v_tec));
+end $$;
+
+-- ---------------------------------------------------------------- 6. Para a tela: quem sou e como estou vendo
+create or replace view minha_visualizacao with (security_invoker = true) as
+select u.id as usuario_id,
+       u.perfil::text as perfil_real,
+       fn_perfil()::text as perfil,
+       (u.perfil = 'admin' and u.ativo and v.usuario_id is not null) as simulando,
+       case when u.perfil = 'admin' and u.ativo then v.local_id end as local_id,
+       case when u.perfil = 'admin' and u.ativo then l.nome end as local_nome,
+       case when u.perfil = 'admin' and u.ativo then v.tecnico_id end as tecnico_id,
+       case when u.perfil = 'admin' and u.ativo then t.nome end as tecnico_nome,
+       array(select x.id from local x where fn_pode_operar_local(x.id) order by x.id) as locais_operaveis
+  from usuario u
+  left join visualizacao v on v.usuario_id = u.id
+  left join local l on l.id = v.local_id
+  left join tecnico t on t.id = v.tecnico_id
+ where u.id = auth.uid();
+revoke all on minha_visualizacao from public, anon, authenticated;
+grant select on minha_visualizacao to authenticated;
+
+-- ---------------------------------------------------------------- 7. Permissões
+revoke execute on function public.fn_perfil_real(), public.fn_simulacao(), public.fn_tecnico_atual(),
+  public.fn_local_do_usuario(integer) from public, anon, authenticated;
+revoke execute on function public.definir_visualizacao(jsonb), public.fn_perfil(), public.fn_pode_ver_local(integer),
+  public.fn_pode_operar_local(integer), public.registrar_movimentacao(jsonb) from public, anon;
+grant execute on function public.definir_visualizacao(jsonb), public.fn_perfil(), public.fn_pode_ver_local(integer),
+  public.fn_pode_operar_local(integer), public.registrar_movimentacao(jsonb) to authenticated;
 

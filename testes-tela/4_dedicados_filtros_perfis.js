@@ -20,15 +20,15 @@ await f.locator('input[placeholder="Estoque livre"]').first().click();await p.lo
 await f.getByRole('button',{name:'Registrar'}).click();await msgForm(p);
 check(saldo('Nova Lima','Buzzer',true)==='5'&&saldo('Nova Lima','Buzzer',false)==='0','2a entrada por compra dedicada: 5 dedicados e 0 livres');
 await f.getByLabel('Tipo').selectOption('AJUSTE');await f.getByLabel('Local').selectOption({label:'Nova Lima'});
-await busca(f,'Digite para buscar o item','FMC 150');
+await busca(f,'Digite para buscar o item','Módulo FMC 150');
 check(await f.locator('label',{hasText:/^Ajuste/}).locator('select').count()===1,'2b ajuste tem seletor Aumentar/Reduzir');
 await f.locator('label',{hasText:/^Ajuste/}).locator('select').selectOption('menos');await f.locator('input[type=number]').first().fill('1');
 await f.locator('textarea').fill('contagem');await f.getByRole('button',{name:'Registrar'}).click();await msgForm(p);
-check(saldo('Nova Lima','FMC 150',false)==='4','2c ajuste "Reduzir 1" levou FMC 150 de 5 para 4');
+check(saldo('Nova Lima','Módulo FMC 150',false)==='4','2c ajuste "Reduzir 1" levou FMC 150 de 5 para 4');
 await f.getByLabel('Tipo').selectOption('AJUSTE');await f.getByLabel('Local').selectOption({label:'Nova Lima'});
-await busca(f,'Digite para buscar o item','FMC 150');await f.locator('label',{hasText:/^Ajuste/}).locator('select').selectOption('mais');await f.locator('input[type=number]').first().fill('3');
+await busca(f,'Digite para buscar o item','Módulo FMC 150');await f.locator('label',{hasText:/^Ajuste/}).locator('select').selectOption('mais');await f.locator('input[type=number]').first().fill('3');
 await f.locator('textarea').fill('achou');await f.getByRole('button',{name:'Registrar'}).click();await msgForm(p);
-check(saldo('Nova Lima','FMC 150',false)==='7','2d ajuste "Aumentar 3" levou para 7');
+check(saldo('Nova Lima','Módulo FMC 150',false)==='7','2d ajuste "Aumentar 3" levou para 7');
 // 3) Dedicados: transferir para SBC, SBC confirma
 await L.nav(p,'/dedicados');
 const linha=p.locator('tr',{hasText:'Buzzer'}).first();await linha.getByRole('button',{name:'Transferir'}).click();
@@ -90,13 +90,13 @@ const dests=(await sf.locator('select').nth(0).locator('option').allInnerTexts()
 check(dests.includes('Joao CLT')&&!dests.includes('Nova Lima')&&!dests.includes('São Bernardo'),'7d2 destino só lista técnicos: '+dests);
 await sf.locator('select').nth(0).selectOption({label:'Estoque técnico CLT - Joao CLT'});
 await busca(sf,'Digite para buscar o cliente','Gerdau');
-await busca(sf,'Digite para buscar o item','FMC 150');await sf.locator('input[type=number]').first().fill('2');
+await busca(sf,'Digite para buscar o item','Módulo FMC 150');await sf.locator('input[type=number]').first().fill('2');
 await sf.getByRole('button',{name:'Enviar solicitação'}).click();m=await msgForm(p);check(m.includes('Solicitação enviada'),'7d agendamento pediu SBC→técnico para Gerdau (estoque livre): '+m);
 // item do dedicado de OUTRO cliente: alerta pedindo confirmação
 const avisos=[];p.on('dialog',d=>avisos.push(d.message()));
 await sf.locator('select').nth(0).selectOption({label:'Estoque técnico CLT - Joao CLT'});
 await busca(sf,'Digite para buscar o cliente','Gerdau');
-await busca(sf,'Digite para buscar o item','FMC 150');await sf.locator('input[type=number]').first().fill('1');
+await busca(sf,'Digite para buscar o item','Módulo FMC 150');await sf.locator('input[type=number]').first().fill('1');
 await sf.locator('input[placeholder="Estoque livre"]').first().click();await p.locator('ul li').filter({hasText:'CSN - Mineração'}).first().click();
 await sf.getByRole('button',{name:'Enviar solicitação'}).click();m=await msgForm(p);
 check(avisos.length===1&&avisos[0].includes('cliente diferente')&&avisos[0].includes('CSN - Mineração')&&avisos[0].includes('Gerdau'),'7d3 alerta de dedicado indo para cliente diferente: '+(avisos[0]||'').replace(/\n/g,' / '));

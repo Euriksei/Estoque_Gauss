@@ -35,13 +35,13 @@ export default async function Dedicados() {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-marinho-900">Itens dedicados a clientes</h1>
-      <p className="text-sm text-slate-600">Itens reservados para um cliente ficam fora do estoque livre. Aqui você acompanha onde está cada um, do estoque até a entrega. Depois de dedicado, o item só se movimenta por esta tela: transferir para outro estoque ou enviar ao cliente.</p>
-      {unidadesComItens.length === 0 && <p className="text-sm text-slate-500">Nenhum item dedicado ainda. Para criar um, use "Dedicado para" em Registrar (entrada por compra, ajuste) ou em Transferências.</p>}
+      <p className="text-sm text-slate-600">Itens reservados para um cliente ficam fora do estoque livre. Aqui você acompanha onde está cada um, do estoque até a entrega. Depois de dedicado, o item só se movimenta por esta tela, e vai sempre o dedicado inteiro da unidade naquele local: transferir para outro estoque ou enviar ao cliente.</p>
+      {unidadesComItens.length === 0 && <p className="text-sm text-slate-500">Nenhum item dedicado ainda. Para criar um, use "Dedicado para" em Registrar (devolução de cliente, ajuste) ou em Transferências.</p>}
       {unidadesComItens.map((u) => (
         <div key={u} className="card space-y-3">
           <h2 className="font-medium">{nomeUn.get(u)}</h2>
           <table className="w-full">
-            <thead><tr><th className="th">Item</th><th className="th">Situação</th><th className="th">Onde</th><th className="th text-right">Qtd.</th><th className="th"></th></tr></thead>
+            <thead><tr><th className="th">Item</th><th className="th">Situação</th><th className="th">Onde</th><th className="th text-right">Qtd.</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {posicoes.filter((p) => p.unidade_id === u).map((p, i) => (
                 <tr key={i}>
@@ -49,16 +49,21 @@ export default async function Dedicados() {
                   <td className="td">{SITUACAO[p.situacao]}</td>
                   <td className="td">{p.local_id ? nomeLocal.get(p.local_id) ?? "-" : "-"}</td>
                   <td className="td text-right font-medium">{p.quantidade}</td>
-                  <td className="td">
-                    {podeMover && p.situacao === "em_local" && p.local_id && operaveisIds.has(p.local_id) && p.quantidade > 0 && (
-                      <DedicadoAcoes unidadeId={u} produtoId={p.produto_id} chip={p.condicao} localId={p.local_id} max={p.quantidade}
-                        destinos={todos} tecnicos={tecnicos.filter((t) => t.ativo)} ehTecnico={usuario.perfil === "tecnico"} podeTransferir={usuario.perfil !== "tecnico"} />
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {/* Uma movimentação por local: leva todo o dedicado da unidade guardado ali. */}
+          {podeMover && [...new Set(posicoes.filter((p) => p.unidade_id === u && p.situacao === "em_local" && p.local_id && p.quantidade > 0).map((p) => p.local_id!))]
+            .filter((l) => operaveisIds.has(l)).map((l) => (
+              <div key={l} className="space-y-1 rounded border border-slate-200 p-3">
+                <p className="text-sm font-medium">Dedicado guardado em {nomeLocal.get(l)}</p>
+                <DedicadoAcoes unidadeId={u} localId={l}
+                  itens={posicoes.filter((p) => p.unidade_id === u && p.situacao === "em_local" && p.local_id === l && p.quantidade > 0)
+                    .map((p) => ({ produto_id: p.produto_id, condicao: p.condicao, quantidade: p.quantidade, nome: nomeProd(p.produto_id, p.condicao) }))}
+                  destinos={todos} tecnicos={tecnicos.filter((t) => t.ativo)} ehTecnico={usuario.perfil === "tecnico"} podeTransferir={usuario.perfil !== "tecnico"} />
+              </div>
+            ))}
           <details className="text-sm">
             <summary className="cursor-pointer text-slate-600">Histórico completo</summary>
             <ul className="mt-2 space-y-1">

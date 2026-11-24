@@ -1,6 +1,7 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
 import { EstoqueMinimo, NovaUnidade, NovoCliente, NovoProduto, NovoTecnico, ProdutosTabela, TecnicoLinha } from "@/components/CadastroForms";
+import { Colapsavel } from "@/components/Colapsavel";
 import { nomeUnidade } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,14 +26,17 @@ export default async function Cadastros() {
       <h1 className="text-xl font-bold text-marinho-900">Cadastros</h1>
       <section className="card space-y-3">
         <h2 className="font-medium">Clientes e unidades</h2>
-        <NovoCliente />
-        <NovaUnidade clientes={clientes} />
+        {/* Os formulários de criar começam fechados e só abrem no botão. */}
+        <div className="flex flex-wrap gap-3">
+          <Colapsavel rotulo="+ Novo cliente"><NovoCliente /></Colapsavel>
+          <Colapsavel rotulo="+ Nova unidade"><NovaUnidade clientes={clientes} /></Colapsavel>
+        </div>
         <p className="text-sm text-slate-600">{cat.unidades.map(nomeUnidade).join(" · ") || "Nenhuma unidade cadastrada."}</p>
       </section>
       <section className="card space-y-3">
         <h2 className="font-medium">Técnicos</h2>
         <p className="text-sm text-slate-600">Cada técnico (CLT ou PJ) tem o próprio estoque. Quem leva material ao cliente é escolhido aqui na saída. Se o técnico também usa o sistema, ligue-o ao login dele para ele ver e movimentar o próprio estoque.</p>
-        <NovoTecnico usuarios={usuarios} bases={todos.filter((l) => l.tipo === "estoque")} />
+        <Colapsavel rotulo="+ Novo técnico"><NovoTecnico usuarios={usuarios} bases={todos.filter((l) => l.tipo === "estoque")} /></Colapsavel>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead><tr><th className="th">Técnico</th><th className="th">Vínculo</th><th className="th">Login</th><th className="th">Situação</th><th className="th">Estoque base</th><th className="th">Estoque</th></tr></thead>
@@ -45,7 +49,7 @@ export default async function Cadastros() {
       </section>
       <section className="card space-y-3">
         <h2 className="font-medium">Itens e estoque mínimo</h2>
-        <NovoProduto categorias={k.data ?? []} fornecedores={f.data ?? []} />
+        <Colapsavel rotulo="+ Novo item"><NovoProduto categorias={k.data ?? []} fornecedores={f.data ?? []} /></Colapsavel>
         <ProdutosTabela produtos={cat.produtos} />
       </section>
     </div>

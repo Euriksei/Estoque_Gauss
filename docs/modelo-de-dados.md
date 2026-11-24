@@ -1,30 +1,29 @@
 # Sistema de Estoque: modelo de dados (v4)
 
-Base das decisões do Matheus: plataforma web com banco de dados; controle **só por quantidade**; a planilha é só ideia e os saldos dela não entram por enquanto. Arquivos: [catalogo-itens.csv](catalogo-itens.csv) (90 itens) e [schema.sql](schema.sql). O banco pronto, com segurança e funções, está em `estoque-app/` (ver README).
+Base das decisões do Matheus: plataforma web com banco de dados; controle **só por quantidade**; a planilha é só ideia e os saldos dela não entram por enquanto. Arquivos: [catalogo-itens.csv](catalogo-itens.csv) (77 itens) e [schema.sql](schema.sql). O banco pronto, com segurança e funções, está em `estoque-app/` (ver README).
 
 ## 1. Itens e categorias
 
-Cada item é um cadastro com nome, categoria, fabricante (nos rastreadores), fornecedor padrão, prazo médio de entrega e estoque mínimo. Usei a sua lista de 15 categorias e mantive os nomes como você passou.
+Cada item é um cadastro com nome, categoria, fabricante (nos rastreadores), fornecedor padrão, prazo médio de entrega e estoque mínimo. O catálogo atual (lista de 2026-11-23, em [catalogo-itens.csv](catalogo-itens.csv)) tem 77 itens em 14 categorias; a categoria "Caixas e gabinetes" continua cadastrada, mas ficou sem itens.
 
 | # | Categoria | Itens |
 |---|---|:-:|
-| 1 | Rastreamento e telemetria | 15 |
-| 2 | Câmeras | 8 |
-| 3 | MDVR e monitores | 5 |
-| 4 | Cabos, chicotes e conexões | 11 |
-| 5 | Tablets e acessórios | 11 |
-| 6 | RFID e identificação | 7 |
+| 1 | Rastreamento e telemetria | 12 |
+| 2 | Câmeras | 7 |
+| 3 | MDVR e monitores | 4 |
+| 4 | Cabos, chicotes e conexões | 15 |
+| 5 | Tablets e acessórios | 8 |
+| 6 | RFID e identificação | 5 |
 | 7 | Alimentação e conversores | 5 |
-| 8 | Sensores e sinalização | 5 |
-| 9 | Automação e controle | 5 |
-| 10 | Comunicação e conectividade | 7 |
-| 11 | Armazenamento de dados | 5 |
-| 12 | Caixas e gabinetes | 2 |
-| 13 | Controle de abastecimento e comboio | 2 |
-| 14 | Navegação e orientação veicular | 1 |
-| 15 | Integração veicular | 1 |
+| 8 | Sensores e sinalização | 4 |
+| 9 | Automação e controle | 3 |
+| 10 | Comunicação e conectividade | 6 |
+| 11 | Armazenamento de dados | 4 |
+| 12 | Controle de abastecimento e comboio | 2 |
+| 13 | Navegação e orientação veicular | 1 |
+| 14 | Integração veicular | 1 |
 
-São os 87 itens da aba Posição mais 3 chicotes novos (FMC150, FMC130 e Galileo). Fornecedor, prazo e estoque mínimo vieram da planilha; os 3 chicotes novos ficam em branco até você preencher. "Galielo Rotograma falado" ficou com a grafia que você mandou.
+Os módulos de rastreamento são 1 item cada, com o saldo separado por chip (sem chip, Claro, Vivo, Arqia). "DashCAM", "MDVR Intelbras 3404" e "MDVR Intelbras 5404" são itens separados. "Galielo Rotograma falado" ficou com a grafia que você mandou.
 
 ## 2. Locais e usuários
 

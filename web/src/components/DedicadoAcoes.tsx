@@ -2,40 +2,43 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { MODOS, MODOS_COM_RASTREIO, VINCULOS, type Local, type Tecnico } from "@/lib/types";
+import { MODOS, MODOS_COM_RASTREIO, VINCULOS, hojeSP, type Local, type Tecnico } from "@/lib/types";
 
 type Props = {
-  unidadeId: number; produtoId: number; chip: string; localId: number; max: number;
+  unidadeId: number; localId: number;
+  // Todo o dedicado da unidade guardado neste local (cada item/chip com a quantidade inteira) e o nome para mostrar.
+  itens: { produto_id: number; condicao: string; quantidade: number; nome: string }[];
   destinos: Local[]; tecnicos: Tecnico[]; ehTecnico: boolean; podeTransferir: boolean;
 };
 
-// Único lugar onde um item dedicado é movimentado: transferir para outro estoque ou enviar ao cliente.
-export function DedicadoAcoes({ unidadeId, produtoId, chip, localId, max, destinos, tecnicos, ehTecnico, podeTransferir }: Props) {
+// Único lugar onde o dedicado é movimentado: transferir para outro estoque ou enviar ao cliente.
+// Vai sempre o dedicado INTEIRO da unidade naquele local, sem quantidade parcial (o banco também exige).
+export function DedicadoAcoes({ unidadeId, localId, itens, destinos, tecnicos, ehTecnico, podeTransferir }: Props) {
   const router = useRouter();
   const [aberto, setAberto] = useState<"" | "transferir" | "cliente">("");
-  const [qtd, setQtd] = useState(max);
   const [destino, setDestino] = useState<number | "">("");
   const [modo, setModo] = useState("");
   const [tecnicoId, setTecnicoId] = useState<number | "">("");
   const [rastreio, setRastreio] = useState("");
-  const [prazo, setPrazo] = useState("");
   const [chamado, setChamado] = useState("");
   const [finalidade, setFinalidade] = useState("");
   const [msg, setMsg] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
-  const item = [{ produto_id: produtoId, quantidade: qtd, reservado_unidade_id: unidadeId, condicao: chip }];
-  const hoje = new Date().toISOString().slice(0, 10);
+  const item = itens.map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade, reservado_unidade_id: unidadeId, condicao: i.condicao }));
+  const hoje = hojeSP();
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     setOcupado(true); setMsg("");
     const sb = supabaseBrowser();
+    // Transferir = pedido de transferência com o dedicado inteiro (a origem aceita e envia em Transferências).
     const { error } = aberto === "transferir"
-      ? await sb.rpc("criar_transferencia", { p: { origem_id: localId, destino_id: destino, data: hoje, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, itens: item } })
+      ? await sb.rpc("criar_pedido_transferencia", { p: { origem_id: localId, destino_id: destino, chamado_url: chamado, dedicados: [unidadeId] } })
       : await sb.rpc("registrar_movimentacao", { p: { tipo: "SAIDA_CLIENTE", local_id: localId, unidade_id: unidadeId, data: hoje, finalidade, chamado_url: chamado, modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null, itens: item } });
     setOcupado(false);
     if (error) return setMsg(error.message);
+    if (aberto === "transferir") window.alert("Pedido de transferência criado. Ele aparece em Transferências até a origem aceitar e enviar.");
     setAberto("");
     router.refresh();
   }
@@ -43,14 +46,16 @@ export function DedicadoAcoes({ unidadeId, produtoId, chip, localId, max, destin
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
-        {podeTransferir && <button type="button" className="btn-sec" onClick={() => setAberto(aberto === "transferir" ? "" : "transferir")}>Transferir</button>}
-        <button type="button" className="btn-sec" onClick={() => setAberto(aberto === "cliente" ? "" : "cliente")}>Enviar ao cliente</button>
+        {podeTransferir && <button type="button" className="btn-sec" onClick={() => setAberto(aberto === "transferir" ? "" : "transferir")}>Transferir tudo</button>}
+        <button type="button" className="btn-sec" onClick={() => setAberto(aberto === "cliente" ? "" : "cliente")}>Enviar tudo ao cliente</button>
       </div>
       {aberto && (
         <form onSubmit={enviar} className="grid gap-2 rounded border border-slate-200 p-3 sm:grid-cols-4">
-          <label className="text-xs">Quantidade (máx. {max})
-            <input type="number" className="campo" min={1} max={max} value={qtd} onChange={(e) => setQtd(Number(e.target.value))} required />
-          </label>
+          <div className="text-xs sm:col-span-4">Vai junto (todo o dedicado deste local):
+            <ul className="mt-1 list-inside list-disc text-sm" data-vai-junto>
+              {itens.map((i, k) => <li key={k}>{i.quantidade}× {i.nome}</li>)}
+            </ul>
+          </div>
           {aberto === "transferir" && (
             <label className="text-xs sm:col-span-2">Para o estoque
               <select className="campo" value={destino} onChange={(e) => setDestino(Number(e.target.value))} required>
@@ -67,10 +72,10 @@ export function DedicadoAcoes({ unidadeId, produtoId, chip, localId, max, destin
             </label>
           )}
           {aberto === "cliente" && ehTecnico && <p className="text-xs text-slate-600 sm:col-span-4">Envio por técnico: você é registrado como o técnico que levou o material.</p>}
-          {!(aberto === "cliente" && ehTecnico) && (
-            <label className="text-xs">{aberto === "cliente" ? "Modo de envio" : "Meio de envio"}
-              <select className="campo" value={modo} onChange={(e) => { setModo(e.target.value); setTecnicoId(""); }} required={aberto === "cliente"}>
-                <option value="">{aberto === "cliente" ? "Selecione" : "-"}</option>
+          {aberto === "cliente" && !ehTecnico && (
+            <label className="text-xs">Modo de envio
+              <select className="campo" value={modo} onChange={(e) => { setModo(e.target.value); setTecnicoId(""); }} required>
+                <option value="">Selecione</option>
                 {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
@@ -83,23 +88,16 @@ export function DedicadoAcoes({ unidadeId, produtoId, chip, localId, max, destin
               </select>
             </label>
           )}
-          {MODOS_COM_RASTREIO.includes(modo) && (
+          {aberto === "cliente" && MODOS_COM_RASTREIO.includes(modo) && (
             <label className="text-xs sm:col-span-2">Código de rastreio
               <input className="campo" value={rastreio} onChange={(e) => setRastreio(e.target.value)} />
             </label>
           )}
-          {aberto === "transferir" && (
-            <label className="text-xs">Prazo de chegada
-              <input type="date" className="campo" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
-            </label>
-          )}
-          {aberto === "cliente" && (
-            <label className="text-xs sm:col-span-4">Link do chamado no Jira (opcional)
-              <input className="campo" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
-            </label>
-          )}
+          <label className="text-xs sm:col-span-4">Link do chamado no Jira (opcional)
+            <input className="campo" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
+          </label>
           <div className="sm:col-span-4">
-            <button className="btn" disabled={ocupado}>{aberto === "transferir" ? "Enviar transferência" : "Registrar saída"}</button>
+            <button className="btn" disabled={ocupado}>{aberto === "transferir" ? "Criar pedido de transferência" : "Registrar saída"}</button>
             {msg && <span className="ml-2 text-xs text-marca-700">{msg}</span>}
           </div>
         </form>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getLocais, getUsuario } from "@/lib/dados";
 import { Acao } from "@/components/Acao";
-import { MODOS, STATUS, TIPOS, VINCULOS, nomeItem, nomeUnidade, type Vinculo } from "@/lib/types";
+import { nomeModo, STATUS, TIPOS, VINCULOS, nomeItem, nomeUnidade, type Vinculo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export default async function Historico() {
                 <td className="td text-xs text-slate-600">
                   {m.unidade && <div>{nomeUnidade({ id: 0, cliente_id: 0, nome: m.unidade.nome, cliente: m.unidade.cliente })}</div>}
                   {m.numero_nf && <div>NF {m.numero_nf}</div>}
-                  {m.modo_envio && <div>Envio: {MODOS[m.modo_envio]}{m.tecnico && ` · ${m.tecnico.nome} (${VINCULOS[m.tecnico.vinculo]})`}{m.codigo_rastreio && ` · rastreio ${m.codigo_rastreio}`}</div>}
+                  {m.modo_envio && <div>Envio: {nomeModo(m.modo_envio)}{m.tecnico && ` · ${m.tecnico.nome} (${VINCULOS[m.tecnico.vinculo]})`}{m.codigo_rastreio && ` · rastreio ${m.codigo_rastreio}`}</div>}
                   {m.chamado_url && <a className="underline" href={m.chamado_url} target="_blank" rel="noreferrer">chamado</a>}
                   {m.observacao && <div>{m.observacao}</div>}
                   <div>por {m.criador?.nome ?? "-"}</div>

@@ -4,17 +4,19 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Busca } from "@/components/Busca";
 import { ItensEditor, itemVazio, itensParaRpc } from "@/components/ItensEditor";
-import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Tecnico, type Unidade } from "@/lib/types";
+import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, hojeSP, nomeItem, nomeUnidade, type Associado, type ItemForm, type Local, type Produto, type Tecnico, type Unidade } from "@/lib/types";
 
-type Props = { tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean;
-  // Estoques de técnicos (destino da saída para estoque técnico), com o técnico dono de cada um.
-  estoquesTecnico: { local_id: number; tecnico: Tecnico }[] };
+export type Saldo = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
+// Tipos que tiram do estoque do local escolhido (no ajuste, só as linhas "Reduzir").
+const SAIDAS = ["SAIDA_CLIENTE", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
 
-export function MovimentarForm({ tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico, estoquesTecnico }: Props) {
+type Props = { saldo: Saldo[]; tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean };
+
+export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico }: Props) {
   const router = useRouter();
   const [tipo, setTipo] = useState(tipos[0]);
   const [localId, setLocalId] = useState<number | "">(locais.length === 1 ? locais[0].id : "");
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState(hojeSP);
   const [unidadeId, setUnidadeId] = useState<number | "">("");
   const [fornecedorId, setFornecedorId] = useState<number | "">("");
   const [nf, setNf] = useState("");
@@ -23,7 +25,6 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
   const [modo, setModo] = useState("");
   const [rastreio, setRastreio] = useState("");
   const [tecnicoId, setTecnicoId] = useState<number | "">("");
-  const [prazo, setPrazo] = useState("");
   const [obs, setObs] = useState("");
   const [itens, setItens] = useState<ItemForm[]>([itemVazio()]);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
@@ -31,29 +32,54 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
 
   const cliente = tipo === "SAIDA_CLIENTE" || tipo === "DEVOLUCAO_CLIENTE";
   const saida = tipo === "SAIDA_CLIENTE";
-  const paraTecnico = tipo === "SAIDA_TECNICO";
+  const comChicote = tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE";
+  const linhasRpc = () => itensParaRpc(itens, comChicote ? associados : []);
+
+  // Disponível no local escolhido, por item + chip + reserva (livre ou dedicado), como na view saldo.
+  const confere = SAIDAS.includes(tipo) && localId !== "";
+  const usaChip = (id: number | "") => !!produtos.find((p) => p.id === id)?.usa_chip;
+  const chave = (pid: number | "", chip: string | undefined, res: number | "" | null | undefined) => `${pid}|${usaChip(pid) ? chip || "novo" : "novo"}|${res || ""}`;
+  // No ajuste o item sai da reserva escolhida; nas demais saídas, do estoque livre (ou do reservado informado).
+  const reservaDe = (l: { reservado_unidade_id?: number | "" | null; reservar_para_unidade_id?: number | "" | null }) =>
+    tipo === "AJUSTE" ? l.reservar_para_unidade_id || l.reservado_unidade_id : l.reservado_unidade_id;
+  const disponivel = new Map<string, number>();
+  for (const s of saldo) if (s.local_id === localId) {
+    const k = `${s.produto_id}|${s.condicao}|${s.reservado_unidade_id ?? ""}`;
+    disponivel.set(k, (disponivel.get(k) ?? 0) + s.quantidade);
+  }
+  // Quanto sai de cada item/chip/reserva, somando linhas repetidas e os chicotes gerados.
+  const retirada = new Map<string, { qtd: number; produto_id: number; chip?: string; res: number | null }>();
+  if (confere) for (const l of linhasRpc()) {
+    if (l.produto_id === "" || (usaChip(l.produto_id) && !l.condicao)) continue;
+    const res = reservaDe(l) || null;
+    const k = chave(l.produto_id, l.condicao, res);
+    const r = retirada.get(k) ?? { qtd: 0, produto_id: l.produto_id, chip: l.condicao, res };
+    r.qtd += tipo === "AJUSTE" ? -l.quantidade : l.quantidade;
+    retirada.set(k, r);
+  }
+  const nomeLocal = locais.find((l) => l.id === localId)?.nome ?? "";
+  const faltas = [...retirada.entries()].filter(([k, r]) => r.qtd > 0 && r.qtd > (disponivel.get(k) ?? 0)).map(([k, r]) => {
+    const p = produtos.find((x) => x.id === r.produto_id);
+    const u = unidades.find((x) => x.id === r.res);
+    return `Só há ${disponivel.get(k) ?? 0} ${nomeItem(p?.nome, p?.usa_chip, r.chip || "novo")}${u ? ` dedicado(s) a ${nomeUnidade(u)}` : " livre(s)"} em ${nomeLocal} (você está tirando ${r.qtd}).`;
+  });
+  // Linha do editor: mostra o disponível quando o item (e o chip, se for módulo) já foi escolhido.
+  const dispLinha = (it: ItemForm) => {
+    if (!confere || it.produto_id === "" || (usaChip(it.produto_id) && !it.chip) || (tipo === "AJUSTE" && it.sentido !== "menos")) return null;
+    const k = chave(it.produto_id, it.chip, reservaDe(it));
+    const d = disponivel.get(k) ?? 0;
+    return { disponivel: d, passou: (retirada.get(k)?.qtd ?? 0) > d };
+  };
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
+    if (faltas.length > 0) return setMsg({ ok: false, texto: faltas.join(" ") });
     setEnviando(true);
     setMsg(null);
-    // Saída para estoque técnico = transferência: sai do estoque agora e só entra no do técnico quando ele confirmar.
-    if (tipo === "SAIDA_TECNICO") {
-      const destino = estoquesTecnico.find((e) => e.tecnico.id === tecnicoId)?.local_id;
-      const r = await supabaseBrowser().rpc("criar_transferencia", {
-        p: { origem_id: localId, destino_id: destino, data, modo_envio: modo, codigo_rastreio: rastreio, prazo_chegada: prazo, observacao: obs, itens: itensParaRpc(itens, associados) },
-      });
-      setEnviando(false);
-      if (r.error) return setMsg({ ok: false, texto: r.error.message });
-      setMsg({ ok: true, texto: "Enviado ao estoque do técnico. O saldo só entra nele quando o técnico confirmar o recebimento." });
-      setItens([itemVazio()]); setObs(""); setRastreio("");
-      router.refresh();
-      return;
-    }
     const { error } = await supabaseBrowser().rpc("registrar_movimentacao", {
       p: {
         tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
-        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: itensParaRpc(itens, tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE" ? associados : []),
+        numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: linhasRpc(),
         modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null,
       },
     });
@@ -72,18 +98,24 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
     <form onSubmit={enviar} className="card space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="text-sm">Tipo
-          <select className="campo mt-1" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <select className="campo mt-1" value={tipo} onChange={(e) => {
+            const t = e.target.value;
+            setTipo(t);
+            // "Dedicado para" só existe na devolução, no ajuste e na saída para técnico: não leva a escolha para outro tipo.
+            if (!["DEVOLUCAO_CLIENTE", "AJUSTE"].includes(t)) setItens(itens.map((it) => ({ ...it, reservar_para_unidade_id: undefined })));
+          }}>
             {tipos.map((t) => <option key={t} value={t}>{TIPOS[t]}</option>)}
           </select>
         </label>
         <label className="text-sm">Local
-          <select className="campo mt-1" value={localId} onChange={(e) => setLocalId(Number(e.target.value))} required>
-            <option value="">Selecione</option>
+          {/* Só os estoques que o usuário movimenta; se for um só, já vem escolhido e travado. */}
+          <select className="campo mt-1" value={localId} onChange={(e) => setLocalId(e.target.value ? Number(e.target.value) : "")} required disabled={locais.length === 1}>
+            {locais.length > 1 && <option value="">Selecione</option>}
             {locais.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
           </select>
         </label>
         <label className="text-sm">Data
-          <input type="date" className="campo mt-1" value={data} onChange={(e) => setData(e.target.value)} required />
+          <input type="date" className="campo mt-1" value={data} max={hojeSP()} onChange={(e) => setData(e.target.value)} required />
         </label>
       </div>
 
@@ -132,31 +164,6 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
         </div>
       )}
 
-      {paraTecnico && (
-        <div className="grid gap-3 sm:grid-cols-4">
-          <label className="text-sm sm:col-span-2">Estoque do técnico
-            <select className="campo mt-1" value={tecnicoId} onChange={(e) => setTecnicoId(Number(e.target.value))} required>
-              <option value="">Selecione</option>
-              {estoquesTecnico.map((e) => <option key={e.local_id} value={e.tecnico.id}>{e.tecnico.nome} ({VINCULOS[e.tecnico.vinculo]})</option>)}
-            </select>
-          </label>
-          <label className="text-sm">Meio de envio
-            <select className="campo mt-1" value={modo} onChange={(e) => setModo(e.target.value)}>
-              <option value="">-</option>
-              {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </label>
-          <label className="text-sm">Prazo de chegada
-            <input type="date" className="campo mt-1" value={prazo} onChange={(e) => setPrazo(e.target.value)} />
-          </label>
-          {MODOS_COM_RASTREIO.includes(modo) && (
-            <label className="text-sm sm:col-span-4">Código de rastreio
-              <input className="campo mt-1" value={rastreio} onChange={(e) => setRastreio(e.target.value)} />
-            </label>
-          )}
-          <p className="text-xs text-slate-500 sm:col-span-4">O saldo sai do seu estoque agora e só entra no estoque do técnico quando ele confirmar o recebimento (em Transferências).</p>
-        </div>
-      )}
 
       {tipo === "ENTRADA_COMPRA" && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -173,8 +180,8 @@ export function MovimentarForm({ tipos, locais, produtos, unidades, associados, 
       )}
 
       <ItensEditor key={tipo} itens={itens} onChange={setItens} produtos={produtos} associados={associados}
-        chicote={tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE" || paraTecnico ? "sim" : "nenhum"}
-        unidades={unidades} reserva={paraTecnico || tipo === "ENTRADA_COMPRA" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
+        chicote={comChicote ? "sim" : "nenhum"} disponivel={dispLinha}
+        unidades={unidades} reserva={tipo === "DEVOLUCAO_CLIENTE" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
       <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; escolha Aumentar ou Reduzir em cada item)" : "Observação"}
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />
