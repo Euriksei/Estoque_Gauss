@@ -219,6 +219,7 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 - [ ] Testes de tela: reescrever o 3 e partes do 4 para o fluxo novo de pedidos e rodar do 3 ao 7 (as mudanças de 2026-11-23 ainda não foram testadas logado no navegador)
 - [ ] Testes de tela rodarem no Windows (`testes-tela/rodar.sh` hoje só roda no Linux: acentos e caminho do PostgreSQL)
 - [ ] (Depois) Chamado obrigatório também em "Enviar ao cliente" e nos pedidos de transferência
+- [ ] Testar no Supabase a troca de chip pela mesma operadora (PR #4), já aplicada em 2026-11-23
 - [ ] Ajustes de aparência (front-end)
 - [ ] Relatórios e exportação
 - [ ] Publicação (por exemplo, na Vercel) com as mesmas variáveis do `.env.local`
