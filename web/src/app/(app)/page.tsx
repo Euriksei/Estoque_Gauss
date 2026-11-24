@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 type Linha = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
 // Ordem das colunas de chip dos módulos (condicao no banco: novo = sem chip).
-const ORDEM_CHIPS = ["novo", "vivo", "claro", "arquia"] as const;
+const ORDEM_CHIPS = ["novo", "vivo", "claro", "arqia"] as const;
 type LinhaTela = { local_id: number; produto_id: number; reservado_unidade_id: number | null; quantidade: number; chips: Record<string, number> | null };
 
 export default async function Estoque({ searchParams }: { searchParams: { local?: string; q?: string; grupo?: string; categoria?: string } }) {

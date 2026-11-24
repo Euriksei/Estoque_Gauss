@@ -10,18 +10,26 @@
 begin;
 
 -- ---------------------------------------------------------------- 1. Arqia: uma operadora só
--- Renomear o valor do enum mantém as linhas existentes; o que era arquia_vivo passa para arquia.
+-- Renomear o valor do enum mantém as linhas existentes; o que era arquia_vivo passa para arqia.
+-- Aceita qualquer estado anterior: arquia_claro/arquia_vivo (chips antigos), arquia (nome provisório) ou arqia.
 do $$ begin
-  if exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
-              where t.typname = 'condicao_item' and e.enumlabel = 'arquia_claro') then
-    alter type condicao_item rename value 'arquia_claro' to 'arquia';
+  if not exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                  where t.typname = 'condicao_item' and e.enumlabel = 'arqia') then
+    if exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                where t.typname = 'condicao_item' and e.enumlabel = 'arquia') then
+      alter type condicao_item rename value 'arquia' to 'arqia';
+    elsif exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                   where t.typname = 'condicao_item' and e.enumlabel = 'arquia_claro') then
+      alter type condicao_item rename value 'arquia_claro' to 'arqia';
+    end if;
   end if;
 end $$;
-update movimentacao_item set condicao = 'arquia' where condicao::text = 'arquia_vivo';
+update movimentacao_item set condicao = 'arqia' where condicao::text in ('arquia', 'arquia_claro', 'arquia_vivo');
+update produto set chip_tipo = 'arqia' where chip_tipo in ('arquia', 'arquia_claro', 'arquia_vivo');
 
 create or replace function public.fn_rotulo_chip(c text) returns text language sql immutable as $$
   select case c when 'novo' then 'sem chip' when 'claro' then 'Claro' when 'vivo' then 'Vivo'
-                when 'arquia' then 'Arqia' else c end
+                when 'arqia' then 'Arqia' else c end
 $$;
 
 create or replace function public.fn_gravar_itens(p_mov bigint, p_itens jsonb) returns void
@@ -36,7 +44,7 @@ begin
     -- só módulos com chip guardam o chip; os demais itens ficam sempre em 'novo'
     v_chip := case when exists (select 1 from produto where id = v_pid and usa_chip)
                    then coalesce(nullif(it->>'condicao',''), 'novo') else 'novo' end;
-    if v_chip not in ('novo','claro','vivo','arquia') then raise exception 'Chip inválido: %', v_chip; end if;
+    if v_chip not in ('novo','claro','vivo','arqia') then raise exception 'Chip inválido: %', v_chip; end if;
     insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade, reservado_unidade_id,
                                    reservar_para_unidade_id)
     values (p_mov, v_pid, v_chip::condicao_item, (it->>'quantidade')::int,
@@ -65,10 +73,13 @@ begin
   end if;
   if not exists (select 1 from produto where id = v_prod and usa_chip) then raise exception 'Este item não usa chip'; end if;
   if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
-  if v_de not in ('novo','claro','vivo','arquia') or v_para not in ('novo','claro','vivo','arquia') then
+  if v_de not in ('novo','claro','vivo','arqia') or v_para not in ('novo','claro','vivo','arqia') then
     raise exception 'Chip inválido';
   end if;
-  if v_de = v_para then raise exception 'O chip de origem e o de destino são iguais'; end if;
+  -- Mesmo chip de antes só faz sentido para substituir um chip ruim: o antigo é descartado e sai outro avulso.
+  if v_de = v_para and (v_de = 'novo' or v_dest <> 'descartar') then
+    raise exception 'Para trocar por outro chip da mesma operadora, escolha descartar o chip retirado';
+  end if;
   if v_dest not in ('estoque','descartar') then raise exception 'chip_retirado deve ser estoque ou descartar'; end if;
   if v_dest = 'descartar' and v_de <> 'novo' and v_obs is null then
     raise exception 'Descartar chip exige o motivo (ex.: módulo não comunicou)';
@@ -81,11 +92,13 @@ begin
   perform fn_travar_locais(array[v_local]);
   insert into movimentacao (tipo, status, data, local_destino_id, observacao, criado_por)
   values ('TROCA_CHIP', 'registrado', coalesce((p->>'data')::date, current_date), v_local,
-          concat_ws(E'\n', fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) ||
+          concat_ws(E'\n', case when v_de = v_para then 'Chip ' || fn_rotulo_chip(v_de) || ' substituído por outro' else fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) end ||
                     case when v_de <> 'novo' and v_dest = 'descartar' then ' (chip retirado descartado)' else '' end, v_obs), auth.uid())
   returning id into v_id;
-  insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
-    (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  if v_de <> v_para then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
+      (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  end if;
   if v_chip_de is not null and v_dest = 'estoque' then
     insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_de, 'novo', v_qtd);
   end if;
@@ -97,7 +110,7 @@ begin
 end $$;
 
 -- Chip avulso da Arqia: "Chip Arqia M2M". O que estava em Arqia Claro/Vivo M2M passa para ele.
-update produto set chip_tipo = 'arquia' where nome = 'Chip Arqia M2M';
+update produto set chip_tipo = 'arqia' where nome = 'Chip Arqia M2M';
 update movimentacao_item set produto_id = (select id from produto where nome = 'Chip Arqia M2M')
  where produto_id in (select id from produto where nome in ('Chip Arqia Claro M2M', 'Chip Arqia Vivo M2M'));
 update pedido_compra set produto_id = (select id from produto where nome = 'Chip Arqia M2M')

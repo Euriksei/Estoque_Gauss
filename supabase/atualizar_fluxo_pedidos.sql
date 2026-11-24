@@ -85,7 +85,7 @@ begin
     end if;
     v_chip := case when exists (select 1 from produto where id = v_pid and usa_chip) then nullif(it->>'condicao','')
                    else 'novo' end;
-    if v_chip is not null and v_chip not in ('novo','claro','vivo','arquia') then raise exception 'Chip inválido: %', v_chip; end if;
+    if v_chip is not null and v_chip not in ('novo','claro','vivo','arqia') then raise exception 'Chip inválido: %', v_chip; end if;
     insert into solicitacao_item (solicitacao_id, produto_id, quantidade, condicao, reservar_para_unidade_id)
     values (p_sol, v_pid, v_qtd, v_chip::condicao_item, nullif(it->>'reservar_para_unidade_id','')::int);
   end loop;
@@ -214,7 +214,7 @@ end $$;
 -- enviar_dedicado:  {data, modo_envio, tecnico_id, codigo_rastreio, observacao, chips}     -> SAIDA_CLIENTE
 -- retirar_dedicado: {data, observacao, chips}                                              -> DEVOLUCAO_CLIENTE dedicada
 -- legado:           como antes (transferência origem -> destino com os itens do pedido)
--- chips: {"<solicitacao_item.id>": "novo"|"claro"|"vivo"|"arquia"}; sem escolha vale o chip do item (nulo = sem chip).
+-- chips: {"<solicitacao_item.id>": "novo"|"claro"|"vivo"|"arqia"}; sem escolha vale o chip do item (nulo = sem chip).
 create or replace function public.atender_solicitacao(p_id bigint, p jsonb) returns bigint
 language plpgsql security definer set search_path = public as $$
 declare

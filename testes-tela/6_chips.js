@@ -28,7 +28,7 @@ await L.nav(p,'/');const tx=await p.locator('tbody').first().innerText();
 const cab=await p.locator('thead').first().innerText();
 const lin=await p.locator('table').first().locator('tbody tr').evaluateAll(rs=>rs.map(r=>({c:[...r.cells].map(td=>td.innerText.trim()),chip:Object.fromEntries([...r.querySelectorAll('td[data-chip]')].map(td=>[td.dataset.chip,td.innerText.trim()]))})));
 const fmc=lin.find(r=>r.c[0]==='Nova Lima'&&r.c[2]==='Módulo FMC 150');
-check(['Sem chip','Vivo','Claro','Arqia','Qtd. total'].every(x=>cab.toLowerCase().includes(x.toLowerCase()))&&!!fmc&&['novo','vivo','claro','arquia'].every(c=>fmc.chip[c]===s('Módulo FMC 150',c))&&fmc.c[fmc.c.length-1]===s('Módulo FMC 150'),'2a Estoque mostra FMC 150 numa linha com colunas Sem chip/Vivo/Claro/Arqia (zeros inclusive) e o total');
+check(['Sem chip','Vivo','Claro','Arqia','Qtd. total'].every(x=>cab.toLowerCase().includes(x.toLowerCase()))&&!!fmc&&['novo','vivo','claro','arqia'].every(c=>fmc.chip[c]===s('Módulo FMC 150',c))&&fmc.c[fmc.c.length-1]===s('Módulo FMC 150'),'2a Estoque mostra FMC 150 numa linha com colunas Sem chip/Vivo/Claro/Arqia (zeros inclusive) e o total');
 check(!tx.includes('Buzzer ('),'2b item que não usa chip não mostra chip');
 await p.screenshot({path:'d_estoque_chip.png'});
 // 3) tela Chips: instalar / trocar / descartar
@@ -55,6 +55,14 @@ check(s('Módulo FMC 150','vivo')==='1','3f descartar sem motivo é barrado (obs
 await f.getByLabel(/Observação/).fill('não comunicou no teste');
 await f.getByRole('button',{name:'Registrar troca de chip'}).click();check((await msgForm(p)).includes('Chip registrado'),'3g descartar com motivo registrado');
 check(s('Módulo FMC 150','vivo')==='0'&&s('Chip Vivo M2M')==='3','3h módulo voltou a sem chip e o chip avulso NÃO voltou ao estoque (descartado)');
+// chip ruim: descartar e pegar outro da mesma operadora
+const mc=s('Módulo FMC 150','claro'),ac=s('Chip Claro M2M');
+await f.getByLabel('Quantidade de módulos').fill('1');
+await f.getByLabel('Chip que o módulo tem hoje').selectOption('claro');await f.getByLabel('Chip que ele vai ficar').selectOption('claro');
+check(await f.getByLabel('O que fazer com o chip retirado').isDisabled(),'3i mesmo chip nos dois campos trava a opção em "Descartar"');
+await f.getByLabel(/Observação/).fill('não conectou na produção');
+await f.getByRole('button',{name:'Registrar troca de chip'}).click();check((await msgForm(p)).includes('Chip registrado'),'3j substituir chip ruim registrado');
+check(s('Módulo FMC 150','claro')===mc&&Number(s('Chip Claro M2M'))===Number(ac)-1,'3k módulo continua Claro e o avulso Claro baixou 1 (o ruim foi descartado)');
 await p.screenshot({path:'d_chips.png'});
 // 4) mensagem de saldo cita o chip
 await f.getByLabel('Quantidade de módulos').fill('99');

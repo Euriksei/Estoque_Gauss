@@ -234,10 +234,13 @@ begin
   end if;
   if not exists (select 1 from produto where id = v_prod and usa_chip) then raise exception 'Este item não usa chip'; end if;
   if v_qtd is null or v_qtd <= 0 then raise exception 'Quantidade deve ser maior que zero'; end if;
-  if v_de not in ('novo','claro','vivo','arquia') or v_para not in ('novo','claro','vivo','arquia') then
+  if v_de not in ('novo','claro','vivo','arqia') or v_para not in ('novo','claro','vivo','arqia') then
     raise exception 'Chip inválido';
   end if;
-  if v_de = v_para then raise exception 'O chip de origem e o de destino são iguais'; end if;
+  -- Mesmo chip de antes só faz sentido para substituir um chip ruim: o antigo é descartado e sai outro avulso.
+  if v_de = v_para and (v_de = 'novo' or v_dest <> 'descartar') then
+    raise exception 'Para trocar por outro chip da mesma operadora, escolha descartar o chip retirado';
+  end if;
   if v_dest not in ('estoque','descartar') then raise exception 'chip_retirado deve ser estoque ou descartar'; end if;
   if v_dest = 'descartar' and v_de <> 'novo' and v_obs is null then
     raise exception 'Descartar chip exige o motivo (ex.: módulo não comunicou)';
@@ -251,11 +254,13 @@ begin
   perform fn_travar_locais(array[v_local]);
   insert into movimentacao (tipo, status, data, local_destino_id, observacao, criado_por)
   values ('TROCA_CHIP', 'registrado', v_data, v_local,
-          concat_ws(E'\n', fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) ||
+          concat_ws(E'\n', case when v_de = v_para then 'Chip ' || fn_rotulo_chip(v_de) || ' substituído por outro' else fn_rotulo_chip(v_de) || ' → ' || fn_rotulo_chip(v_para) end ||
                     case when v_de <> 'novo' and v_dest = 'descartar' then ' (chip retirado descartado)' else '' end, v_obs), auth.uid())
   returning id into v_id;
-  insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
-    (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  if v_de <> v_para then
+    insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values
+      (v_id, v_prod, v_de::condicao_item, -v_qtd), (v_id, v_prod, v_para::condicao_item, v_qtd);
+  end if;
   if v_chip_de is not null and v_dest = 'estoque' then
     insert into movimentacao_item (movimentacao_id, produto_id, condicao, quantidade) values (v_id, v_chip_de, 'novo', v_qtd);
   end if;
