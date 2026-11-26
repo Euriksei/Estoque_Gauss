@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Busca } from "@/components/Busca";
-import { CHIPS, type Local, type Produto } from "@/lib/types";
+import { CHIPS, REDES, hojeSP, type Local, type Produto } from "@/lib/types";
 
 // Instala, troca ou retira o chip de módulos que estão no estoque. Mexe nos chips avulsos junto.
 export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: Produto[] }) {
@@ -32,6 +32,7 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
     router.refresh();
   }
 
+  const rede = modulos.find((m) => m.id === produto)?.chip_rede;
   const retira = de !== "novo";
   const mesmo = de === para && de !== "novo"; // trocar por outro chip da mesma operadora: o antigo é descartado
   return (
@@ -42,16 +43,17 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
           {locais.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
         </select>
       </label>
-      <div className="text-sm">Módulo
-        <Busca required value={produto} onChange={setProduto} placeholder="Digite para buscar o módulo" opcoes={modulos.map((m) => ({ value: m.id, label: m.nome }))} />
+      <div className="text-sm">Equipamento
+        <Busca required value={produto} onChange={setProduto} placeholder="Digite para buscar o equipamento" opcoes={modulos.map((m) => ({ value: m.id, label: m.nome }))} />
+        {rede && <span className="text-xs text-slate-600">usa chip {REDES[rede]}</span>}
       </div>
-      <label className="text-sm">Quantidade de módulos
+      <label className="text-sm">Quantidade de equipamentos
         <input type="number" className="campo mt-1" min={1} step={1} inputMode="numeric" value={qtd || ""} required
           onKeyDown={(e) => { if (["-", "+", "e", "E", ".", ","].includes(e.key)) e.preventDefault(); }}
           onChange={(e) => { const n = Math.floor(Number(e.target.value)); setQtd(n > 0 ? n : 0); }} />
       </label>
       <div className="hidden sm:block" />
-      <label className="text-sm">Chip que o módulo tem hoje
+      <label className="text-sm">Chip que ele tem hoje
         <select className="campo mt-1" value={de} onChange={(e) => setDe(e.target.value)}>
           {Object.entries(CHIPS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
         </select>
@@ -73,10 +75,86 @@ export function TrocarChipForm({ locais, modulos }: { locais: Local[]; modulos: 
         <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={(retirado === "descartar" || mesmo) && retira} />
       </label>
       <p className="text-xs text-slate-500 sm:col-span-2">
-        Instalar um chip baixa 1 chip avulso da operadora escolhida por módulo. Trocar de operadora devolve o chip antigo ao estoque avulso (ou descarta, se você escolher). Para trocar um chip ruim por outro da mesma operadora, deixe o mesmo chip nos dois campos: o antigo é descartado e sai outro do avulso.
+        Instalar um chip baixa 1 chip avulso da operadora escolhida por equipamento, do tipo que ele usa (módulos: M2M; MDVR e DashCAM: Voz e Dados). Trocar de operadora devolve o chip antigo ao estoque avulso (ou descarta, se você escolher). Para trocar um chip ruim por outro da mesma operadora, deixe o mesmo chip nos dois campos: o antigo é descartado e sai outro do avulso.
       </p>
       <div className="flex items-center gap-3 sm:col-span-2">
         <button className="btn" disabled={ocupado}>Registrar troca de chip</button>
+        {msg && <p className={`text-sm ${ok ? "text-green-700" : "text-marca-700"}`}>{msg}</p>}
+      </div>
+    </form>
+  );
+}
+
+// Troca os chips entre dois equipamentos no mesmo estoque (mesmo tipo de chip, só estoque livre).
+// Com B sem chip, o chip de A passa para B (mover chip).
+export function TrocarChipsEntreForm({ locais, equipamentos }: { locais: Local[]; equipamentos: Produto[] }) {
+  const router = useRouter();
+  const [local, setLocal] = useState<number | "">(locais.length === 1 ? locais[0].id : "");
+  const [a, setA] = useState<number | "">("");
+  const [chipA, setChipA] = useState("vivo");
+  const [b, setB] = useState<number | "">("");
+  const [chipB, setChipB] = useState("claro");
+  const [qtd, setQtd] = useState(1);
+  const [obs, setObs] = useState("");
+  const [msg, setMsg] = useState("");
+  const [ok, setOk] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const redeA = equipamentos.find((m) => m.id === a)?.chip_rede;
+  const nomeA = equipamentos.find((m) => m.id === a)?.nome ?? "A";
+  const nomeB = equipamentos.find((m) => m.id === b)?.nome ?? "B";
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setOcupado(true); setMsg("");
+    const { error } = await supabaseBrowser().rpc("trocar_chips_entre", {
+      p: { local_id: local, produto_a_id: a, chip_a: chipA, produto_b_id: b, chip_b: chipB, quantidade: qtd, data: hojeSP(), observacao: obs },
+    });
+    setOcupado(false);
+    setOk(!error);
+    if (error) return setMsg(error.message);
+    setMsg("Chips trocados."); setObs(""); setQtd(1);
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={enviar} className="card grid gap-3 sm:grid-cols-2">
+      <h2 className="font-medium sm:col-span-2">Trocar chips entre equipamentos</h2>
+      <label className="text-sm">Estoque
+        <select className="campo mt-1" required value={local} onChange={(e) => setLocal(Number(e.target.value))}>
+          <option value="">Selecione</option>
+          {locais.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+        </select>
+      </label>
+      <label className="text-sm">Quantidade de cada lado
+        <input type="number" className="campo mt-1" min={1} step={1} inputMode="numeric" value={qtd || ""} required
+          onKeyDown={(e) => { if (["-", "+", "e", "E", ".", ","].includes(e.key)) e.preventDefault(); }}
+          onChange={(e) => { const n = Math.floor(Number(e.target.value)); setQtd(n > 0 ? n : 0); }} />
+      </label>
+      <div className="text-sm">Equipamento A
+        <Busca required value={a} onChange={(v) => { setA(v); setB(""); }} placeholder="Digite para buscar" opcoes={equipamentos.map((m) => ({ value: m.id, label: m.nome }))} />
+        {redeA && <span className="text-xs text-slate-600">usa chip {REDES[redeA]}</span>}
+      </div>
+      <label className="text-sm">Chip de A hoje
+        <select className="campo mt-1" value={chipA} onChange={(e) => setChipA(e.target.value)}>
+          {Object.entries(CHIPS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+        </select>
+      </label>
+      <div className="text-sm">Equipamento B (mesmo tipo de chip)
+        <Busca required value={b} onChange={setB} placeholder="Digite para buscar" opcoes={equipamentos.filter((m) => !redeA || m.chip_rede === redeA).map((m) => ({ value: m.id, label: m.nome }))} />
+      </div>
+      <label className="text-sm">Chip de B hoje
+        <select className="campo mt-1" value={chipB} onChange={(e) => setChipB(e.target.value)}>
+          {Object.entries(CHIPS).map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+        </select>
+      </label>
+      <p className="text-xs text-slate-600 sm:col-span-2">
+        Resultado: {qtd} {nomeA} com {CHIPS[chipB]} e {qtd} {nomeB} com {CHIPS[chipA]}. Só usa o estoque livre.
+      </p>
+      <label className="text-sm sm:col-span-2">Observação
+        <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
+      </label>
+      <div className="flex items-center gap-3 sm:col-span-2">
+        <button className="btn" disabled={ocupado}>Trocar chips</button>
         {msg && <p className={`text-sm ${ok ? "text-green-700" : "text-marca-700"}`}>{msg}</p>}
       </div>
     </form>

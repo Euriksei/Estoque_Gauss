@@ -19,8 +19,8 @@ Camera contexto DVR,Câmeras,"",Intelbrás,30,0
 Camera frontal (Adas) DVR,Câmeras,"",Intelbrás,30,0
 Camera frontal (Adas) DashCAM,Câmeras,"",Intelbrás,30,0
 DashCAM,MDVR e monitores,"",Intelbrás,30,0
-MDVR Intelbras 3404,MDVR e monitores,"",Intelbrás,30,0
-MDVR Intelbras 5404,MDVR e monitores,"",Intelbrás,30,0
+MDVR 3404,MDVR e monitores,"",Intelbrás,30,0
+MDVR 5404,MDVR e monitores,"",Intelbrás,30,0
 Monitor de alarme (SmartWach),MDVR e monitores,"",Intelbrás,30,0
 Cabo rede,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Chicote FMC130,"Cabos, chicotes e conexões","","",,0
@@ -35,10 +35,6 @@ Extensão cameras,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Extensão cameras DashCAM,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Switch cabo rede Intelbras,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Carregador DC/DC 12V Tablet Roboflex,Tablets e acessórios,"",Roboflex,20,30
-Case Tablet Multilaser,Tablets e acessórios,"",Roboflex,20,0
-Case Tablet Samsung,Tablets e acessórios,"",Roboflex,20,30
-Suporte Tablet Multilaser,Tablets e acessórios,"",Roboflex,20,0
-Suporte Tablet Samsung,Tablets e acessórios,"",Roboflex,20,20
 Suporte Ventosa,Tablets e acessórios,"",Roboflex,20,20
 Tablet Multilaser,Tablets e acessórios,"",Roboflex,20,0
 Tablet Samsung,Tablets e acessórios,"",Roboflex,20,20
@@ -76,3 +72,15 @@ Smartlink Carretinha,Integração veicular,"",PrimeField,30,0
 Chicote ECO 5,"Cabos, chicotes e conexões","","",,0
 Chicote ECO-LIGHT +S,"Cabos, chicotes e conexões","","",,0
 Chicote FMB920,"Cabos, chicotes e conexões","","",,0
+Antena GPS,Comunicação e conectividade,"","",,0
+Antena GSM Macho,Comunicação e conectividade,"","",,0
+Antena GSM Femea,Comunicação e conectividade,"","",,0
+Antena Wifi,Comunicação e conectividade,"","",,0
+Chicote MDVR,"Cabos, chicotes e conexões","","",,0
+Chicote DashCAM,"Cabos, chicotes e conexões","","",,0
+Case Tablet 4 pinos,Tablets e acessórios,"","",,0
+Case Tablet 10 pinos,Tablets e acessórios,"","",,0
+Case Tablet Tipo C,Tablets e acessórios,"","",,0
+Suporte Tablet,Tablets e acessórios,"","",,0
+Plug Carregador Tablet 4 pinos,Tablets e acessórios,"","",,0
+Plug Carregador Tablet 10 pinos,Tablets e acessórios,"","",,0

@@ -29,7 +29,7 @@ export default async function Solicitacoes() {
   const acao = new Map(((acoes.data ?? []) as AcoesPedido[]).map((a) => [a.id, a]));
   const dedicados = (ded.data ?? []) as DedicadoNoLocal[];
   const prod = new Map(cat.produtos.map((p) => [p.id, p]));
-  const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
+  const nomeUn = new Map(cat.todasUnidades.map((u) => [u.id, nomeUnidade(u)]));
   const nomeLocal = new Map(todos.map((l) => [l.id, l.nome]));
   const estoques = todos.filter((l) => l.tipo === "estoque");
   const situacao = (s: Pedido) => acao.get(s.id)?.situacao ?? s.status;
@@ -44,8 +44,8 @@ export default async function Solicitacoes() {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-marinho-900">Solicitações de envio ao cliente</h1>
-      <p className="text-sm text-slate-600">O agendamento pede: enviar itens ao cliente, enviar o dedicado inteiro de um cliente ou retirar um dedicado no cliente. O estoque aceita e atende.</p>
-      {usuario.perfil === "agendamento" && (
+      <p className="text-sm text-slate-600">O agendamento (ou o administrador) pede: enviar itens ao cliente, enviar o dedicado inteiro de um cliente ou retirar um dedicado no cliente. O estoque aceita e atende.</p>
+      {(usuario.perfil === "agendamento" || usuario.perfil === "admin") && (
         <Colapsavel rotulo="Nova solicitação">
           <SolicitacaoForm produtos={cat.produtos} associados={cat.associados} unidades={cat.unidades} estoques={estoques} dedicados={dedicados} />
         </Colapsavel>

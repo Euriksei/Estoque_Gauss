@@ -22,7 +22,7 @@ export default async function Dedicados() {
     sb.from("dedicados_historico").select("*").order("movimentacao_id", { ascending: false }).limit(300),
     getTecnicos(),
   ]);
-  const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
+  const nomeUn = new Map(cat.todasUnidades.map((u) => [u.id, nomeUnidade(u)]));
   const prod = new Map(cat.produtos.map((p) => [p.id, p]));
   const nomeProd = (id: number, chip: string) => nomeItem(prod.get(id)?.nome, prod.get(id)?.usa_chip, chip);
   const nomeLocal = new Map(todos.map((l) => [l.id, l.nome]));

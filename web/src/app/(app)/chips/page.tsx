@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getUsuario } from "@/lib/dados";
-import { TrocarChipForm } from "@/components/TrocarChipForm";
-import { CHIPS } from "@/lib/types";
+import { TrocarChipForm, TrocarChipsEntreForm } from "@/components/TrocarChipForm";
+import { CHIPS, REDES } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +21,13 @@ export default async function Chips() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-bold text-marinho-900">Chips dos módulos</h1>
+      <h1 className="text-xl font-bold text-marinho-900">Chips dos equipamentos</h1>
       <p className="text-sm text-slate-600">
-        Todo módulo de telemetria (Ruptela, Galileosky e Teltonika) tem o estoque separado por chip: {Object.values(CHIPS).join(", ")}.
-        Quando um módulo está sem chip, ou o chip precisa mudar, registre aqui. Os chips avulsos continuam sendo itens normais de estoque (entrada e descarte em Registrar).
+        Módulos de telemetria (Ruptela, Galileosky e Teltonika, chip M2M), MDVR e DashCAM (chip Voz e Dados) têm o estoque separado por chip: {Object.values(CHIPS).join(", ")}.
+        Quando um equipamento está sem chip, ou o chip precisa mudar, registre aqui. Os chips avulsos continuam sendo itens normais de estoque (entrada e descarte em Registrar).
       </p>
       <TrocarChipForm locais={operaveis} modulos={modulos} />
+      <TrocarChipsEntreForm locais={operaveis} equipamentos={modulos} />
       {locaisComChip.map((lid) => (
         <div key={lid} className="card space-y-2">
           <h2 className="font-medium">{nomeLocal.get(lid)}</h2>
@@ -39,7 +40,7 @@ export default async function Chips() {
                   return (
                     <tr key={i}>
                       <td className="td">{p?.nome}</td>
-                      <td className="td">{p?.usa_chip ? CHIPS[s.condicao] : "chip avulso"}</td>
+                      <td className="td">{p?.usa_chip ? `${CHIPS[s.condicao]}${p.chip_rede ? ` · usa ${REDES[p.chip_rede]}` : ""}` : `chip avulso${p?.chip_rede ? ` ${REDES[p.chip_rede]}` : ""}`}</td>
                       <td className="td text-right font-medium">{s.quantidade}</td>
                     </tr>
                   );

@@ -28,7 +28,9 @@ declare
     'public.registrar_movimentacao(jsonb)', 'public.confirmar_recebimento(bigint)',
     'public.cancelar_transferencia(bigint,text)', 'public.estornar_movimentacao(bigint,text)',
     'public.criar_pedido_transferencia(jsonb)', 'public.criar_solicitacao(jsonb)', 'public.aceitar_solicitacao(bigint)',
-    'public.atender_solicitacao(bigint,jsonb)', 'public.cancelar_solicitacao(bigint)', 'public.trocar_chip(jsonb)'];
+    'public.atender_solicitacao(bigint,jsonb)', 'public.cancelar_solicitacao(bigint)', 'public.trocar_chip(jsonb)',
+    'public.registrar_transferencia(jsonb)', 'public.trocar_chips_entre(jsonb)', 'public.excluir_item(integer)',
+    'public.excluir_cliente(integer)', 'public.excluir_unidade(integer)'];
 begin
   if to_regprocedure('public.criar_pedido_transferencia(jsonb)') is null then
     lista := lista || 'public.criar_transferencia(jsonb)'::text;

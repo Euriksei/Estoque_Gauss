@@ -8,17 +8,17 @@ import { MODOS, MODOS_COM_RASTREIO, TIPOS, VINCULOS, hojeSP, nomeItem, nomeUnida
 
 export type Saldo = { local_id: number; produto_id: number; condicao: string; reservado_unidade_id: number | null; quantidade: number };
 // Tipos que tiram do estoque do local escolhido (no ajuste, só as linhas "Reduzir").
-const SAIDAS = ["SAIDA_CLIENTE", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
+const SAIDAS = ["SAIDA_CLIENTE", "ENVIO_TECNICO", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
 
-type Props = { saldo: Saldo[]; tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; fornecedores: { id: number; nome: string }[]; tecnicos: Tecnico[]; ehTecnico: boolean };
+type Props = { saldo: Saldo[]; tipos: string[]; locais: Local[]; produtos: Produto[]; unidades: Unidade[]; associados: Associado[]; tecnicos: Tecnico[]; ehTecnico: boolean };
 
-export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, associados, fornecedores, tecnicos, ehTecnico }: Props) {
+export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, associados, tecnicos, ehTecnico }: Props) {
   const router = useRouter();
+  const localInicial = locais.length === 1 ? locais[0].id : "";
   const [tipo, setTipo] = useState(tipos[0]);
-  const [localId, setLocalId] = useState<number | "">(locais.length === 1 ? locais[0].id : "");
+  const [localId, setLocalId] = useState<number | "">(localInicial);
   const [data, setData] = useState(hojeSP);
   const [unidadeId, setUnidadeId] = useState<number | "">("");
-  const [fornecedorId, setFornecedorId] = useState<number | "">("");
   const [nf, setNf] = useState("");
   const [finalidade, setFinalidade] = useState("");
   const [chamado, setChamado] = useState("");
@@ -32,8 +32,9 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
 
   const cliente = tipo === "SAIDA_CLIENTE" || tipo === "DEVOLUCAO_CLIENTE";
   const saida = tipo === "SAIDA_CLIENTE";
-  const comChicote = tipo === "ENTRADA_COMPRA" || tipo === "DEVOLUCAO_CLIENTE" || tipo === "SAIDA_CLIENTE";
-  const linhasRpc = () => itensParaRpc(itens, comChicote ? associados : []);
+  const devolucao = tipo === "DEVOLUCAO_CLIENTE";
+  // Todos os tipos sugerem o kit do item (Com kit); o usuário desmarca o que não vai junto.
+  const linhasRpc = () => itensParaRpc(itens, associados);
 
   // Disponível no local escolhido, por item + chip + reserva (livre ou dedicado), como na view saldo.
   const confere = SAIDAS.includes(tipo) && localId !== "";
@@ -71,6 +72,13 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
     return { disponivel: d, passou: (retirada.get(k)?.qtd ?? 0) > d };
   };
 
+  // Cancelar: volta tudo ao estado inicial, sem gravar.
+  function cancelar() {
+    if (itens.some((it) => it.produto_id !== "") && !confirm("Descartar os itens preenchidos?")) return;
+    setTipo(tipos[0]); setLocalId(localInicial); setData(hojeSP()); setUnidadeId(""); setNf("");
+    setFinalidade(""); setChamado(""); setModo(""); setRastreio(""); setTecnicoId(""); setObs(""); setItens([itemVazio()]); setMsg(null);
+  }
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (faltas.length > 0) return setMsg({ ok: false, texto: faltas.join(" ") });
@@ -78,7 +86,7 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
     setMsg(null);
     const { error } = await supabaseBrowser().rpc("registrar_movimentacao", {
       p: {
-        tipo, data, local_id: localId, unidade_id: unidadeId || null, fornecedor_id: fornecedorId || null,
+        tipo, data, local_id: localId, unidade_id: unidadeId || null,
         numero_nf: nf, finalidade, chamado_url: chamado, observacao: obs, itens: linhasRpc(),
         modo_envio: modo, codigo_rastreio: rastreio, tecnico_id: tecnicoId || null,
       },
@@ -101,8 +109,8 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
           <select className="campo mt-1" value={tipo} onChange={(e) => {
             const t = e.target.value;
             setTipo(t);
-            // "Dedicado para" só existe na devolução, no ajuste e na saída para técnico: não leva a escolha para outro tipo.
-            if (!["DEVOLUCAO_CLIENTE", "AJUSTE"].includes(t)) setItens(itens.map((it) => ({ ...it, reservar_para_unidade_id: undefined })));
+            // "Dedicado para" só existe no ajuste: não leva a escolha para outro tipo.
+            if (t !== "AJUSTE") setItens(itens.map((it) => ({ ...it, reservar_para_unidade_id: undefined })));
           }}>
             {tipos.map((t) => <option key={t} value={t}>{TIPOS[t]}</option>)}
           </select>
@@ -134,16 +142,16 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
               </select>
             </label>
           )}
-          {saida && !ehTecnico && (
+          {((saida && !ehTecnico) || devolucao) && (
             <>
-              <label className="text-sm">Modo de envio
+              <label className="text-sm">{devolucao ? "Modo de recebimento" : "Modo de envio"}
                 <select className="campo mt-1" value={modo} onChange={(e) => { setModo(e.target.value); setTecnicoId(""); }} required>
                   <option value="">Selecione</option>
                   {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </label>
               {modo === "tecnico" && (
-                <label className="text-sm sm:col-span-2">Técnico que leva o material
+                <label className="text-sm sm:col-span-2">{devolucao ? "Técnico que entregou" : "Técnico que leva o material"}
                   <select className="campo mt-1" value={tecnicoId} onChange={(e) => setTecnicoId(Number(e.target.value))} required>
                     <option value="">Selecione</option>
                     {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nome} ({VINCULOS[t.vinculo]})</option>)}
@@ -165,14 +173,28 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
       )}
 
 
-      {tipo === "ENTRADA_COMPRA" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">Fornecedor
-            <select className="campo mt-1" value={fornecedorId} onChange={(e) => setFornecedorId(Number(e.target.value))}>
-              <option value="">-</option>
-              {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+      {tipo === "ENVIO_TECNICO" && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">Técnico que recebe
+            <select className="campo mt-1" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value ? Number(e.target.value) : "")} required>
+              <option value="">Selecione</option>
+              {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.nome} ({VINCULOS[t.vinculo]})</option>)}
             </select>
           </label>
+          <label className="text-sm">Modo de envio
+            <select className="campo mt-1" value={modo} onChange={(e) => setModo(e.target.value)} required>
+              <option value="">Selecione</option>
+              {Object.entries(MODOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Link do chamado no Jira (opcional)
+            <input className="campo mt-1" value={chamado} onChange={(e) => setChamado(e.target.value)} placeholder="https://.../browse/HW-5698" />
+          </label>
+        </div>
+      )}
+
+      {tipo === "ENTRADA_COMPRA" && (
+        <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">NF de entrada
             <input className="campo mt-1" value={nf} onChange={(e) => setNf(e.target.value)} />
           </label>
@@ -180,15 +202,18 @@ export function MovimentarForm({ saldo, tipos, locais, produtos, unidades, assoc
       )}
 
       <ItensEditor key={tipo} itens={itens} onChange={setItens} produtos={produtos} associados={associados}
-        chicote={comChicote ? "sim" : "nenhum"} disponivel={dispLinha}
-        unidades={unidades} reserva={tipo === "DEVOLUCAO_CLIENTE" || tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
+        chicote="sim" disponivel={dispLinha}
+        unidades={unidades} reserva={tipo === "AJUSTE" ? "reservar" : "nenhuma"} permiteNegativo={tipo === "AJUSTE"} />
 
-      <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; escolha Aumentar ou Reduzir em cada item)" : "Observação"}
-        <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE"} />
+      <label className="block text-sm">{tipo === "AJUSTE" ? "Justificativa (obrigatória; escolha Aumentar ou Reduzir em cada item)" : tipo === "DESCARTE" ? "Justificativa (obrigatória)" : "Observação"}
+        <textarea className="campo mt-1" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} required={tipo === "AJUSTE" || tipo === "DESCARTE"} />
       </label>
 
       {msg && <p className={`text-sm ${msg.ok ? "text-green-700" : "text-marca-700"}`}>{msg.texto}</p>}
-      <button className="btn" disabled={enviando}>Registrar</button>
+      <div className="flex gap-2">
+        <button className="btn" disabled={enviando}>Registrar</button>
+        <button type="button" className="btn-sec" onClick={cancelar} disabled={enviando}>Cancelar</button>
+      </div>
     </form>
   );
 }

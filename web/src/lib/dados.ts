@@ -39,13 +39,17 @@ export async function getCatalogo() {
   const sb = supabaseServer();
   const [p, u, a] = await Promise.all([
     sb.from("produto").select("*, categoria(nome)").eq("ativo", true).order("nome"),
-    sb.from("unidade_cliente").select("*, cliente(nome)").order("nome"),
+    sb.from("unidade_cliente").select("*, cliente(nome, ativo)").order("nome"),
     sb.from("item_associado").select("*"),
   ]);
+  const ativos = new Set(((p.data ?? []) as { id: number }[]).map((x) => x.id));
   return {
     produtos: (p.data ?? []) as unknown as Produto[],
-    unidades: (u.data ?? []) as unknown as Unidade[],
-    associados: (a.data ?? []) as Associado[],
+    // Telas de escolha: só unidade ativa de cliente ativo. Nomes do histórico: todasUnidades.
+    unidades: ((u.data ?? []) as unknown as Unidade[]).filter((x) => x.ativo !== false && x.cliente?.ativo !== false),
+    todasUnidades: (u.data ?? []) as unknown as Unidade[],
+    // Só associados entre itens ativos (as cases e suportes antigos podem ficar inativos).
+    associados: ((a.data ?? []) as Associado[]).filter((x) => ativos.has(x.produto_id) && ativos.has(x.associado_id)),
   };
 }
 

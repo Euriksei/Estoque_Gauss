@@ -1,8 +1,8 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { getCatalogo, getLocais, getTecnicos, getUsuario } from "@/lib/dados";
-import { EstoqueMinimo, NovaUnidade, NovoCliente, NovoProduto, NovoTecnico, ProdutosTabela, TecnicoLinha } from "@/components/CadastroForms";
+import { AssociadosEditor, ClientesLista, EstoqueMinimo, NovaUnidade, NovoCliente, NovoProduto, NovoTecnico, ProdutosTabela, TecnicoLinha } from "@/components/CadastroForms";
 import { Colapsavel } from "@/components/Colapsavel";
-import { nomeUnidade } from "@/lib/types";
+import { nomeUnidade, type Produto } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,14 +10,15 @@ export default async function Cadastros() {
   const usuario = (await getUsuario())!;
   if (usuario.perfil !== "admin") return <p className="text-sm">Somente administradores.</p>;
   const sb = supabaseServer();
-  const [cat, c, f, k, tecnicos, { todos }, us] = await Promise.all([
+  const [cat, c, k, tecnicos, { todos }, us, todosItens] = await Promise.all([
     getCatalogo(),
-    sb.from("cliente").select("id, nome").order("nome"),
-    sb.from("fornecedor").select("id, nome").order("nome"),
+    sb.from("cliente").select("id, nome, ativo").order("nome"),
     sb.from("categoria").select("id, nome").order("nome"),
     getTecnicos(),
     getLocais(usuario),
     sb.from("usuario").select("id, nome, email").eq("ativo", true).order("nome"),
+    // Cadastros lista também os inativos (reativar pelo Editar).
+    sb.from("produto").select("*, categoria(nome)").order("nome"),
   ]);
   const usuarios = (us.data ?? []) as { id: string; nome: string; email: string }[];
   const clientes = c.data ?? [];
@@ -29,9 +30,9 @@ export default async function Cadastros() {
         {/* Os formulários de criar começam fechados e só abrem no botão. */}
         <div className="flex flex-wrap gap-3">
           <Colapsavel rotulo="+ Novo cliente"><NovoCliente /></Colapsavel>
-          <Colapsavel rotulo="+ Nova unidade"><NovaUnidade clientes={clientes} /></Colapsavel>
+          <Colapsavel rotulo="+ Nova unidade"><NovaUnidade clientes={clientes.filter((x) => x.ativo !== false)} /></Colapsavel>
         </div>
-        <p className="text-sm text-slate-600">{cat.unidades.map(nomeUnidade).join(" · ") || "Nenhuma unidade cadastrada."}</p>
+        <ClientesLista clientes={clientes} unidades={cat.todasUnidades} />
       </section>
       <section className="card space-y-3">
         <h2 className="font-medium">Técnicos</h2>
@@ -49,8 +50,9 @@ export default async function Cadastros() {
       </section>
       <section className="card space-y-3">
         <h2 className="font-medium">Itens e estoque mínimo</h2>
-        <Colapsavel rotulo="+ Novo item"><NovoProduto categorias={k.data ?? []} fornecedores={f.data ?? []} /></Colapsavel>
-        <ProdutosTabela produtos={cat.produtos} />
+        <Colapsavel rotulo="+ Novo item"><NovoProduto categorias={k.data ?? []} /></Colapsavel>
+        <ProdutosTabela produtos={(todosItens.data ?? []) as unknown as Produto[]} categorias={k.data ?? []} />
+        <Colapsavel rotulo="Kit dos itens (Com kit)"><AssociadosEditor produtos={cat.produtos} associados={cat.associados} /></Colapsavel>
       </section>
     </div>
   );

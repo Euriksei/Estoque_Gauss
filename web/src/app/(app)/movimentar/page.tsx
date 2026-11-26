@@ -11,21 +11,20 @@ export default async function Movimentar() {
   if ((usuario.perfil as string) === "tecnico") redirect("/transferencias");
   if (usuario.perfil === "consulta" || usuario.perfil === "agendamento") return <p className="text-sm">Seu perfil não registra movimentações.</p>;
   const sb = supabaseServer();
-  const [{ operaveis }, cat, { data: forn }, tecnicos, { data: saldoBruto }] = await Promise.all([getLocais(usuario), getCatalogo(), sb.from("fornecedor").select("id, nome").order("nome"), getTecnicos(), sb.from("saldo").select("*")]);
+  const [{ operaveis }, cat, tecnicos, { data: saldoBruto }] = await Promise.all([getLocais(usuario), getCatalogo(), getTecnicos(), sb.from("saldo").select("*")]);
   // Saldo dos locais que o usuário movimenta: a tela mostra o disponível nas saídas (o banco continua barrando o que faltar).
   const ids = new Set(operaveis.map((l) => l.id));
   const saldo = ((saldoBruto ?? []) as Saldo[]).filter((s) => ids.has(s.local_id) && s.quantidade !== 0);
   // O técnico só dá baixa de saída para cliente, no próprio estoque/carro.
-  // Envio para o estoque de um técnico agora é pedido em Transferências.
   const tipos = usuario.perfil === "tecnico"
     ? ["SAIDA_CLIENTE"]
-    : ["SAIDA_CLIENTE", "ENTRADA_COMPRA", "DEVOLUCAO_CLIENTE", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
+    : ["SAIDA_CLIENTE", "ENVIO_TECNICO", "ENTRADA_COMPRA", "DEVOLUCAO_CLIENTE", "CONSUMO_INTERNO", "DESCARTE", "AJUSTE"];
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-bold text-marinho-900">{usuario.perfil === "tecnico" ? "Dar baixa no cliente" : "Registrar entrada ou saída"}</h1>
       {operaveis.length === 0
         ? <p className="text-sm">Você ainda não tem um estoque liberado. Fale com um administrador.</p>
-        : <MovimentarForm tipos={tipos} locais={operaveis} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} fornecedores={forn ?? []} saldo={saldo}
+        : <MovimentarForm tipos={tipos} locais={operaveis} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} saldo={saldo}
             tecnicos={tecnicos.filter((t) => t.ativo)} ehTecnico={usuario.perfil === "tecnico"} />}
     </div>
   );

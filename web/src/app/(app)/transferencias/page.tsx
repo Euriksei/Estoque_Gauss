@@ -4,7 +4,7 @@ import { Colapsavel } from "@/components/Colapsavel";
 import { Acao } from "@/components/Acao";
 import { AtenderSolicitacao } from "@/components/AtenderSolicitacao";
 import { PedidoCard } from "@/components/PedidoCard";
-import { TransferenciaForm, type DedicadoNoLocal } from "@/components/TransferenciaForm";
+import { RegistrarTransferenciaForm, TransferenciaForm, type DedicadoNoLocal } from "@/components/TransferenciaForm";
 import { SELECT_PEDIDO, STATUS, nomeItem, nomeModo, nomeUnidade, type AcoesPedido, type Pedido } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function Transferencias() {
   const dedicados = (ded.data ?? []) as DedicadoNoLocal[];
   const prod = new Map(cat.produtos.map((p) => [p.id, p]));
   const nome = new Map(todos.map((l) => [l.id, l.nome]));
-  const nomeUn = new Map(cat.unidades.map((u) => [u.id, nomeUnidade(u)]));
+  const nomeUn = new Map(cat.todasUnidades.map((u) => [u.id, nomeUnidade(u)]));
   const meus = new Set(operaveis.map((l) => l.id));
   const ehOperador = usuario.perfil === "admin" || usuario.perfil === "operador";
   const tipoLocal = new Map(todos.map((l) => [l.id, l.tipo]));
@@ -53,7 +53,7 @@ export default async function Transferencias() {
   const junto = (origem: number | null) => (u: number) => dedicados.filter((d) => d.local_id === origem && d.unidade_id === u && d.quantidade > 0)
     .map((d) => `${d.quantidade}× ${nomeItem(prod.get(d.produto_id)?.nome, prod.get(d.produto_id)?.usa_chip, d.condicao)}`);
 
-  // Transferências feitas direto (antes dos pedidos), sem pedido ligado: continuam visíveis para concluir.
+  // Transferências registradas direto (sem pedido ligado).
   const ligadas = new Set(pedidos.map((s) => s.movimentacao_id).filter((x): x is number => x != null));
   const diretas = movs.filter((m) => !ligadas.has(m.id) && (usuario.perfil !== "tecnico" || meus.has(m.local_destino_id)));
   const situacao = (s: Pedido) => acao.get(s.id)?.situacao ?? s.status;
@@ -86,7 +86,7 @@ export default async function Transferencias() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <strong>{nome.get(m.local_origem_id)} → {nome.get(m.local_destino_id)}</strong>
         <span className={`rounded px-2 py-0.5 text-xs ${m.status === "em_transito" ? "bg-sky-100" : m.status === "recebido" ? "bg-green-100" : "bg-slate-100"}`}>{STATUS[m.status]}</span>
-        <span className="text-xs text-slate-500">transferência direta (antiga)</span>
+        <span className="text-xs text-slate-500">transferência direta</span>
         <span className="text-slate-500">{resumoEnvio(m)}</span>
       </div>
       <ul className="mt-2 list-disc pl-5">
@@ -107,10 +107,15 @@ export default async function Transferencias() {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-marinho-900">Transferências</h1>
-      <p className="text-sm text-slate-600">Pedido de material entre estoques. O saldo só sai quando a origem aceita, prepara e envia; entra no destino quando ele confirma o recebimento.</p>
+      <p className="text-sm text-slate-600">Pedido de material entre estoques: o saldo só sai quando a origem aceita, prepara e envia. Em Registrar transferência, a origem envia direto e o saldo sai na hora. Nos dois casos, entra no destino quando ele confirma o recebimento.</p>
       {ehOperador && (
         <Colapsavel rotulo="Novo pedido de transferência">
           <TransferenciaForm origens={todos.filter((l) => l.tipo === "estoque")} destinos={todos} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} dedicados={dedicados} />
+        </Colapsavel>
+      )}
+      {ehOperador && operaveis.length > 0 && (
+        <Colapsavel rotulo="Registrar transferência">
+          <RegistrarTransferenciaForm origens={operaveis} destinos={todos} produtos={cat.produtos} unidades={cat.unidades} associados={cat.associados} />
         </Colapsavel>
       )}
       {grupos.map((g) => {
