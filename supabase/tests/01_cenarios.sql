@@ -139,7 +139,17 @@ select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_en
 select 'saídas com técnico: ' || (select string_agg(coalesce(t.nome,'-')||'/'||m.modo_envio, ', ' order by m.id) from movimentacao m left join tecnico t on t.id=m.tecnico_id where m.tipo='SAIDA_CLIENTE');
 \echo '--- 6. Dedicado nasce por devolução de cliente e ajuste (Op NL), não por compra; sai sempre inteiro; envio ao estoque do Ze PJ (sem login) confirmado por operador'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
-select registrar_movimentacao(jsonb_build_object('tipo','DEVOLUCAO_CLIENTE','local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',10,'reservar_para_unidade_id',u2)))) is not null from ids;
+\set ON_ERROR_STOP off
+\echo '--- devolução de cliente sem modo de envio (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','DEVOLUCAO_CLIENTE','local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- devolução com modo técnico sem o técnico que entregou (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','DEVOLUCAO_CLIENTE','modo_envio','tecnico','local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) from ids;
+\echo '--- devolução criando dedicado (Dedicado para) (deve falhar: dedicado não nasce mais por devolução)'
+select registrar_movimentacao(jsonb_build_object('tipo','DEVOLUCAO_CLIENTE','modo_envio','retirada','local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',10,'reservar_para_unidade_id',u2)))) from ids;
+\set ON_ERROR_STOP on
+\echo '--- devolução com modo técnico e técnico Ze PJ (ok); dedicado da Mineração nasce por ajuste'
+select registrar_movimentacao(jsonb_build_object('tipo','DEVOLUCAO_CLIENTE','modo_envio','tecnico','tecnico_id',(select id from tecnico where nome='Ze PJ'),'local_id',nl,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',fmc,'quantidade',1)))) is not null from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',nl,'observacao','contagem','itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',10,'reservar_para_unidade_id',u2)))) is not null from ids;
 select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',nl,'observacao','contagem','itens',jsonb_build_array(jsonb_build_object('produto_id',chi,'quantidade',2,'reservar_para_unidade_id',u2)))) is not null from ids;
 select 'NL chicote livre=' || coalesce((select sum(quantidade) from saldo where local_id=nl and produto_id=chi and reservado_unidade_id is null),0) || ' dedicado Mineração=' || (select sum(quantidade) from saldo where local_id=nl and produto_id=chi and reservado_unidade_id=u2) from ids;
 \set ON_ERROR_STOP off
@@ -314,7 +324,7 @@ select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','modo_en
 \echo '--- Op NL: consumo interno no SBC (deve falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',sbc,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \echo '--- Op NL: descarte no SBC (deve falhar)'
-select registrar_movimentacao(jsonb_build_object('tipo','DESCARTE','local_id',sbc,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','DESCARTE','local_id',sbc,'observacao','quebrado','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \echo '--- Op NL: ajuste -1 no SBC (deve falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',sbc,'observacao','teste','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',-1)))) from ids;
 \echo '--- Op NL: entrada por compra no SBC (deve falhar)'
@@ -417,7 +427,7 @@ select t_transferir(jsonb_build_object('origem_id',nl,'destino_id',sbc,'modo_env
 \echo '--- consumo de 1 Buzzer dedicado (deve falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','CONSUMO_INTERNO','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1,'reservado_unidade_id',u1)))) from ids;
 \echo '--- descarte dos 3 Buzzer dedicados (deve falhar: faltam 3 módulos)'
-select registrar_movimentacao(jsonb_build_object('tipo','DESCARTE','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',3,'reservado_unidade_id',u1)))) from ids;
+select registrar_movimentacao(jsonb_build_object('tipo','DESCARTE','local_id',nl,'observacao','quebrado','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',3,'reservado_unidade_id',u1)))) from ids;
 \echo '--- ajuste reduzindo 1 Claro dedicado (deve falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',nl,'observacao','contagem','itens',jsonb_build_array(jsonb_build_object('produto_id',:fm,'quantidade',-1,'condicao','claro','reservado_unidade_id',u1)))) from ids;
 \set ON_ERROR_STOP on
@@ -551,7 +561,7 @@ select cancelar_solicitacao(:pt5);
 select 'pt5 em produção cancelado pelo admin: ' || (select situacao from solicitacao_acoes where id=:pt5);
 \echo '--- retirar dedicado: quem cancela é o operador do DESTINO'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','retirar_dedicado','destino_id',sbc,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-10','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as s5 from ids \gset
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','retirar_dedicado','destino_id',sbc,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-10','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as s5 from ids \gset
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
 \set ON_ERROR_STOP off
 \echo '--- Op NL cancela retirada com destino no SBC (deve falhar)'
@@ -561,27 +571,25 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2'
 select cancelar_solicitacao(:s5);
 select 's5 cancelada pelo operador do destino: ' || (select situacao from solicitacao_acoes where id=:s5);
 
-\echo '--- solicitação: administrador, operador, técnico e consulta não criam (devem falhar)'
+\echo '--- solicitação: operador, técnico e consulta não criam (devem falhar; o administrador cria, ver cenário 23)'
 \set ON_ERROR_STOP off
-select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \echo '--- agendamento: tipo antigo (estoque -> técnico) não existe mais (deve falhar)'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
-select criar_solicitacao(jsonb_build_object('destino_id',car,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','destino_id',car,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \echo '--- agendamento sem cliente (deve falhar)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \echo '--- agendamento pede item de dedicado ou cria dedicado em enviar_cliente (devem falhar: só livre)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1,'reservado_unidade_id',u2)))) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1,'reservar_para_unidade_id',u1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1,'reservado_unidade_id',u2)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1,'reservar_para_unidade_id',u1)))) from ids;
 \set ON_ERROR_STOP on
 \echo '--- agendamento: enviar ao cliente Ouro Branco 2 Buzzer e 1 FMC 650 do NL (chip escolhido no atendimento)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-7',
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',nl,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-7',
   'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',2), jsonb_build_object('produto_id',fmc,'quantidade',1)))) as s1 from ids \gset
 select id as s1_fmc from solicitacao_item where solicitacao_id=:s1 and produto_id=(select fmc from ids) \gset
 \set ON_ERROR_STOP off
@@ -611,17 +619,17 @@ select 'saída: ' || m.tipo::text || ' modo=' || m.modo_envio::text || ' técnic
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
 \set ON_ERROR_STOP off
 \echo '--- enviar_dedicado com itens (deve falhar) e sem dedicado na origem (deve falhar)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',nl,'unidade_id',u2)) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',nl,'unidade_id',u2)) from ids;
 \echo '--- enviar dedicado sem link do chamado, com link em branco e com link sem http (devem falhar)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2)) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','   ')) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','jira.exemplo/browse/AG-8')) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2)) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','   ')) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','jira.exemplo/browse/AG-8')) from ids;
 \echo '--- retirar dedicado sem link do chamado e com link ftp (devem falhar)'
-select criar_solicitacao(jsonb_build_object('tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'chamado_url','ftp://jira.exemplo/AG-9','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'chamado_url','ftp://jira.exemplo/AG-9','itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 \set ON_ERROR_STOP on
-select criar_solicitacao(jsonb_build_object('tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','https://jira.exemplo/browse/AG-8')) as s2 from ids \gset
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_dedicado','origem_id',sbc,'unidade_id',u2,'chamado_url','https://jira.exemplo/browse/AG-8')) as s2 from ids \gset
 select 's2 chamado=' || chamado_url from solicitacao where id=:s2;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
 select aceitar_solicitacao(:s2);
@@ -630,7 +638,7 @@ select 'saída do dedicado: ' || (select count(*) || ' linhas, ' || sum(quantida
 
 \echo '--- retirar dedicado: agendamento pede buscar no Ouro Branco 2 FMC 650 Vivo e 1 Buzzer para o NL'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
-select criar_solicitacao(jsonb_build_object('tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-9','itens',jsonb_build_array(
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','retirar_dedicado','destino_id',nl,'unidade_id',u1,'chamado_url','https://jira.exemplo/browse/AG-9','itens',jsonb_build_array(
   jsonb_build_object('produto_id',fmc,'quantidade',2,'condicao','vivo'), jsonb_build_object('produto_id',:bz,'quantidade',1)))) as s3 from ids \gset
 \set ON_ERROR_STOP off
 \echo '--- Op SBC aceita retirada com destino no NL (deve falhar); Op NL registra a chegada antes de aceitar (deve falhar)'
@@ -647,7 +655,7 @@ select 'chegada: ' || m.tipo::text || ' no ' || l.nome || ' itens dedicados a ' 
 \echo '--- agendamento cancela solicitação ainda aberta (quem criou pode)'
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000e1',false) \gset
 \echo '--- enviar ao cliente sem link do chamado continua valendo (chamado opcional)'
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as s4 from ids \gset
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as s4 from ids \gset
 select cancelar_solicitacao(:s4);
 select 's4: ' || (select situacao from solicitacao_acoes where id=:s4);
 \echo '--- pedidos antigos continuam com tipo legado; nenhum saldo negativo'
@@ -712,7 +720,7 @@ select 'criado_por é o admin real: ' || (criado_por = '00000000-0000-0000-0000-
 \echo '--- admin vê como agendamento do SBC: cria solicitação, não registra nem cria pedido'
 select definir_visualizacao(jsonb_build_object('perfil','agendamento','local_id',(select sbc from ids)));
 select 'como agendamento: perfil=' || perfil || ' local=' || local_nome from minha_visualizacao;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as sv1 from ids \gset
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) as sv1 from ids \gset
 select 'solicitação criada pelo admin real: ' || (tecnico_id = '00000000-0000-0000-0000-00000000000a') || ' tipo=' || tipo from solicitacao where id=:sv1;
 \set ON_ERROR_STOP off
 \echo '--- como agendamento: registrar e criar pedido de transferência (devem falhar)'
@@ -726,7 +734,7 @@ select 'como consulta: perfil=' || perfil || ' locais no saldo=' || (select coun
 \set ON_ERROR_STOP off
 \echo '--- como consulta: registrar, criar solicitação, criar pedido e aceitar (devem falhar)'
 select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
-select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
+select criar_solicitacao(jsonb_build_object('finalidade','manutencao','tipo','enviar_cliente','origem_id',sbc,'unidade_id',u1,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 select criar_pedido_transferencia(jsonb_build_object('origem_id',sbc,'destino_id',nl,'itens',jsonb_build_array(jsonb_build_object('produto_id',:bz,'quantidade',1)))) from ids;
 select aceitar_solicitacao(:pv1);
 \set ON_ERROR_STOP on
@@ -773,3 +781,81 @@ select (select id from produto where nome='Chip Arqia M2M') as cha \gset
 select registrar_movimentacao(jsonb_build_object('tipo','ENTRADA_COMPRA','local_id',:nl3,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cha,'quantidade',2)))) is not null;
 select trocar_chip(jsonb_build_object('local_id',:nl3,'produto_id',:fm3,'quantidade',2,'de','novo','para','arqia')) is not null;
 select 'arqia: modulos=' || (select sum(quantidade) from saldo where local_id=:nl3 and produto_id=:fm3 and condicao='arqia') || ' chip avulso Arqia=' || (select coalesce(sum(quantidade),0) from saldo where local_id=:nl3 and produto_id=:cha);
+\echo '--- 23. Admin: envio para estoque técnico, registrar transferência, troca de chips entre equipamentos, solicitação'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+select definir_visualizacao(jsonb_build_object('perfil','admin'));
+select (select id from local where nome='Nova Lima') as n23, (select id from local where nome like 'São%') as s23,
+       (select id from tecnico where nome='Ze PJ') as ze23, (select id from local where nome='Estoque Ze PJ') as zel23,
+       (select id from produto where nome='Módulo FMC 130') as pa23, (select id from produto where nome='Módulo ECO 5') as pb23,
+       (select id from produto where nome='DashCAM') as dc23, (select id from produto where nome='Cabo rede') as cr23,
+       (select id from unidade_cliente where nome='Ouro Branco') as u23 \gset
+select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',:n23,'observacao','carga do cenário 23','itens',jsonb_build_array(
+  jsonb_build_object('produto_id',:pa23,'condicao','vivo','quantidade',4), jsonb_build_object('produto_id',:pb23,'condicao','claro','quantidade',4),
+  jsonb_build_object('produto_id',:dc23,'condicao','novo','quantidade',2), jsonb_build_object('produto_id',:cr23,'quantidade',10)))) is not null;
+\set ON_ERROR_STOP off
+\echo '--- envio para estoque técnico sem modo de envio (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','ENVIO_TECNICO','local_id',:n23,'tecnico_id',:ze23,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',2))));
+\echo '--- envio para estoque técnico sem técnico (deve falhar)'
+select registrar_movimentacao(jsonb_build_object('tipo','ENVIO_TECNICO','local_id',:n23,'modo_envio','retirada','itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',2))));
+\set ON_ERROR_STOP on
+\echo '--- envio para estoque técnico ok: entra na hora no estoque do Ze PJ'
+select registrar_movimentacao(jsonb_build_object('tipo','ENVIO_TECNICO','local_id',:n23,'tecnico_id',:ze23,'modo_envio','retirada','itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',2)))) as env23 \gset
+select 'envio técnico: status=' || (select status from movimentacao where id=:env23) || ' Ze cabo rede=' || (select sum(quantidade) from saldo where local_id=:zel23 and produto_id=:cr23);
+\set ON_ERROR_STOP off
+\echo '--- registrar transferência sem modo de envio (deve falhar)'
+select registrar_transferencia(jsonb_build_object('origem_id',:n23,'destino_id',:s23,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',3))));
+\set ON_ERROR_STOP on
+\echo '--- registrar transferência ok (em trânsito, com chamado); SBC confirma'
+select registrar_transferencia(jsonb_build_object('origem_id',:n23,'destino_id',:s23,'modo_envio','transportadora','chamado_url','https://jira/HW-1','itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',3)))) as tr23 \gset
+select 'transferência: ' || status || ' chamado=' || chamado_url from movimentacao where id=:tr23;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b2',false) \gset
+select confirmar_recebimento(:tr23);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+select 'SBC cabo rede=' || (select sum(quantidade) from saldo where local_id=:s23 and produto_id=:cr23);
+\set ON_ERROR_STOP off
+\echo '--- técnico registra transferência (deve falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000c1',false) \gset
+select registrar_transferencia(jsonb_build_object('origem_id',:n23,'destino_id',:s23,'modo_envio','correios','itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',1))));
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+\echo '--- trocar chips entre módulo (M2M) e DashCAM (Voz e Dados) (deve falhar)'
+select trocar_chips_entre(jsonb_build_object('local_id',:n23,'produto_a_id',:pa23,'chip_a','vivo','produto_b_id',:dc23,'chip_b','novo','quantidade',1));
+\echo '--- trocar chips entre equipamentos com mais do que há (deve falhar)'
+select trocar_chips_entre(jsonb_build_object('local_id',:n23,'produto_a_id',:pa23,'chip_a','vivo','produto_b_id',:pb23,'chip_b','claro','quantidade',9));
+\set ON_ERROR_STOP on
+\echo '--- trocar chips: 3 FMC 130 Vivo <-> 3 ECO 5 Claro'
+select trocar_chips_entre(jsonb_build_object('local_id',:n23,'produto_a_id',:pa23,'chip_a','vivo','produto_b_id',:pb23,'chip_b','claro','quantidade',3)) is not null;
+select 'FMC130 claro=' || (select sum(quantidade) from saldo where local_id=:n23 and produto_id=:pa23 and condicao='claro') ||
+       ' vivo=' || (select sum(quantidade) from saldo where local_id=:n23 and produto_id=:pa23 and condicao='vivo') ||
+       ' ECO5 vivo=' || (select sum(quantidade) from saldo where local_id=:n23 and produto_id=:pb23 and condicao='vivo');
+\set ON_ERROR_STOP off
+\echo '--- admin cria solicitação sem finalidade (deve falhar)'
+select criar_solicitacao(jsonb_build_object('tipo','enviar_cliente','origem_id',:n23,'unidade_id',:u23,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',1))));
+\set ON_ERROR_STOP on
+\echo '--- admin cria solicitação (ok) e cancela'
+select criar_solicitacao(jsonb_build_object('finalidade','mobilizacao','tipo','enviar_cliente','origem_id',:n23,'unidade_id',:u23,'itens',jsonb_build_array(jsonb_build_object('produto_id',:cr23,'quantidade',1)))) as sol23 \gset
+select cancelar_solicitacao(:sol23);
+select 'solicitação do admin: ' || status || ' finalidade=' || finalidade from solicitacao where id=:sol23;
+
+\echo '--- 24. Admin exclui item, cliente e unidade (excluído x desativado)'
+insert into produto (nome) values ('Item Teste Livre');
+insert into cliente (nome) values ('Cliente Teste Livre');
+insert into unidade_cliente (cliente_id, nome) select id, 'Unidade Livre' from cliente where nome = 'Cliente Teste Livre';
+insert into unidade_cliente (cliente_id, nome) select id, 'Unidade Livre 2' from cliente where nome = 'Gerdau';
+\set ON_ERROR_STOP off
+\echo '--- item com nome repetido em outra caixa (deve falhar)'
+insert into produto (nome) values ('item teste livre');
+\echo '--- operador exclui item, cliente e unidade (devem falhar)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+select excluir_item((select id from produto where nome='Item Teste Livre'));
+select excluir_cliente((select id from cliente where nome='Cliente Teste Livre'));
+select excluir_unidade((select id from unidade_cliente where nome='Unidade Livre 2'));
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+select 'item livre: ' || excluir_item((select id from produto where nome='Item Teste Livre')) ||
+       ' | item com histórico: ' || excluir_item(:cr23) ||
+       ' | unidade livre: ' || excluir_unidade((select id from unidade_cliente where nome='Unidade Livre 2')) ||
+       ' | unidade com histórico: ' || excluir_unidade(:u23) ||
+       ' | cliente livre: ' || excluir_cliente((select id from cliente where nome='Cliente Teste Livre')) ||
+       ' | cliente com histórico: ' || excluir_cliente((select id from cliente where nome='CSN'));
+select 'ativos: cabo rede=' || (select ativo from produto where id=:cr23) || ' Ouro Branco=' || (select ativo from unidade_cliente where id=:u23) ||
+       ' CSN=' || (select ativo from cliente where nome='CSN') || ' unidades CSN ativas=' || (select count(*) from unidade_cliente u join cliente c on c.id=u.cliente_id where c.nome='CSN' and u.ativo);

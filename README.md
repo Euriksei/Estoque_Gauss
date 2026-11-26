@@ -162,7 +162,7 @@ O link usa o *Site URL*; para testar em `localhost`, coloque temporariamente `ht
 
 ## Testes do banco
 
-`supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas, estoque do técnico e itens dedicados. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), `banco_completo.sql` e por fim `01_cenarios.sql`. Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
+`supabase/tests/` tem um cenário que exercita permissões, transferência em duas etapas e registrada direto, envio para estoque técnico, estoque do técnico, itens dedicados, devolução com modo de envio, chips (incluindo troca entre equipamentos), solicitações do agendamento e do administrador e a exclusão/desativação de itens, clientes e unidades. Ele roda num PostgreSQL 15 ou mais novo comum: rode `00_stub_auth.sql` (simula o login do Supabase), `banco_completo.sql` e por fim `01_cenarios.sql`, com `PGCLIENTENCODING=UTF8` (no Windows, sem isso os acentos são gravados errado). Os erros que aparecem no resultado são esperados, cada um marcado "deve falhar".
 
 ## Testes de tela
 
@@ -229,9 +229,11 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 - [x] Cadastros: admin adiciona, edita e exclui itens (excluir só sem histórico; com histórico, desativa), rodado no Supabase — 2026-11-25
 - [x] Cadastros: admin edita clientes e unidades (renomear, mover unidade de cliente, excluir só sem histórico; com histórico, desativa), rodado no Supabase — 2026-11-25
 - [x] Cadastros: lista de clientes com busca, recolhida e alinhada — 2026-11-25
+- [x] Testes do banco (01_cenarios.sql) atualizados para as regras atuais, com casos novos — 2026-11-25
 
 ### A fazer
 
+- [ ] Testes do banco: casos para kits (item_associado com opcional e grupo)
 - [ ] Banco: barrar cliente/unidade inativos nas funções (hoje só as telas escondem)
 - [ ] Testar logado: Com kit, troca de chips entre equipamentos, registrar transferência, devolução e admin criando solicitação (nada disso foi testado no navegador)
 - [ ] (Depois) Revisar nomes e agrupamento dos clientes importados do GaussFleet
@@ -239,7 +241,6 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 - [ ] Testes de tela rodarem no Windows (`testes-tela/rodar.sh` hoje só roda no Linux: acentos e caminho do PostgreSQL)
 - [ ] (Depois) Chamado obrigatório também em "Enviar ao cliente" e nos pedidos de transferência
 - [ ] Testar no Supabase a troca de chip pela mesma operadora (PR #4), já aplicada em 2026-11-23
-- [ ] Testes do banco (01_cenarios.sql): pôr finalidade nos casos que criam solicitação do agendamento
 - [ ] Ajustes de aparência (front-end)
 - [ ] Relatórios e exportação
 - [ ] Publicação (por exemplo, na Vercel) com as mesmas variáveis do `.env.local`
