@@ -234,11 +234,10 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 
 ### A fazer
 
+- [ ] Testes de tela (em andamento, não commitados em `testes-tela/`): terminar o 5 (interface e perfis), ajustar o 6 (chips) e o 7 (saldo disponível), criar o de kits e rodar todos; `rodar.sh` no Windows já foi ajustado mas não validado
+- [ ] Testar logado no navegador: Com kit, troca de chips entre equipamentos, registrar transferência, devolução, envio para estoque técnico e cadastros de itens e clientes
 - [ ] Banco: barrar cliente/unidade inativos nas funções (hoje só as telas escondem)
-- [ ] Testar logado: Com kit, troca de chips entre equipamentos, registrar transferência, devolução e admin criando solicitação (nada disso foi testado no navegador)
 - [ ] (Depois) Revisar nomes e agrupamento dos clientes importados do GaussFleet
-- [ ] Testes de tela: reescrever o 3 e partes do 4 para o fluxo novo de pedidos e rodar do 3 ao 7 (as mudanças de 2026-11-23 ainda não foram testadas logado no navegador)
-- [ ] Testes de tela rodarem no Windows (`testes-tela/rodar.sh` hoje só roda no Linux: acentos e caminho do PostgreSQL)
 - [ ] (Depois) Chamado obrigatório também em "Enviar ao cliente" e nos pedidos de transferência
 - [ ] Testar no Supabase a troca de chip pela mesma operadora (PR #4), já aplicada em 2026-11-23
 - [ ] Ajustes de aparência (front-end)
