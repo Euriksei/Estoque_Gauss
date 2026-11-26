@@ -859,3 +859,75 @@ select 'item livre: ' || excluir_item((select id from produto where nome='Item T
        ' | cliente com histórico: ' || excluir_cliente((select id from cliente where nome='CSN'));
 select 'ativos: cabo rede=' || (select ativo from produto where id=:cr23) || ' Ouro Branco=' || (select ativo from unidade_cliente where id=:u23) ||
        ' CSN=' || (select ativo from cliente where nome='CSN') || ' unidades CSN ativas=' || (select count(*) from unidade_cliente u join cliente c on c.id=u.cliente_id where c.nome='CSN' and u.ativo);
+
+\echo '--- 25. Kits (item_associado)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+create temp view v_kit as
+  select p.nome as prod, a.nome as assoc, ia.quantidade, ia.opcional, ia.grupo
+    from item_associado ia join produto p on p.id = ia.produto_id join produto a on a.id = ia.associado_id;
+grant select on v_kit to authenticated;
+select 'kit FMC 650 ok: ' || ((select string_agg(assoc, ',' order by assoc) from v_kit where prod='Módulo FMC 650') = 'Antena GPS,Antena GSM Femea,Chicote FMC650');
+select 'kit Galileo ok: ' || ((select string_agg(assoc || case when opcional then '(opc)' else '' end, ',' order by assoc) from v_kit where prod='Módulo Galileo 7x / 10HUB')
+                              = 'Antena GPS,Antena GSM Macho,Antena Wifi(opc),Chicote Galileo 7x / 10HUB');
+select 'kit MDVR 3404 ok: ' || ((select string_agg(assoc || case when opcional then '(opc)' else '' end, ',' order by assoc) from v_kit where prod='MDVR 3404')
+                              = 'Antena GPS,Antena GSM Macho,Antena Wifi(opc),Chicote MDVR');
+select 'kit MDVR 5404 sem chicote ok: ' || ((select string_agg(assoc || case when opcional then '(opc)' else '' end, ',' order by assoc) from v_kit where prod='MDVR 5404')
+                              = 'Antena GPS,Antena GSM Macho,Antena Wifi(opc)');
+select 'kit DashCAM ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='DashCAM') = 'Chicote DashCAM');
+select 'kit ECO 5 só chicote ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='Módulo ECO 5') = 'Chicote ECO 5');
+select 'câmeras ok: ' || ((select count(*) from v_kit where prod in ('Camera contexto DVR','Camera Fadiga DVR','Camera frontal (Adas) DVR') and assoc='Extensão cameras') = 3
+                       and (select count(*) from v_kit where prod in ('Camera Contexto DashCAM','Camera Fadiga DashCAM','Camera frontal (Adas) DashCAM') and assoc='Extensão cameras DashCAM') = 3
+                       and (select string_agg(assoc, ',') from v_kit where prod='Camera IP') = 'Cabo rede');
+select 'tablets ok: ' || ((select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser') and grupo is null
+                            and assoc in ('Suporte Tablet','Carregador DC/DC 12V Tablet Roboflex')) = 4
+                       and (select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser') and grupo='Case'
+                            and assoc in ('Case Tablet 4 pinos','Case Tablet 10 pinos','Case Tablet Tipo C')) = 6
+                       and (select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser')) = 10);
+select 'plug segue a case ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='Case Tablet 4 pinos') = 'Plug Carregador Tablet 4 pinos'
+                                 and (select string_agg(assoc, ',') from v_kit where prod='Case Tablet 10 pinos') = 'Plug Carregador Tablet 10 pinos'
+                                 and not exists (select 1 from v_kit where prod='Case Tablet Tipo C'));
+select (select id from produto where nome='Buzzer') as kbz, (select id from produto where nome='Relé Finder') as krf \gset
+
+\set ON_ERROR_STOP off
+\echo '--- operador insere linha em item_associado (deve falhar: RLS)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+insert into item_associado (produto_id, associado_id, quantidade) values (:kbz, :krf, 1);
+\echo '--- consulta insere linha em item_associado (deve falhar: RLS)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
+insert into item_associado (produto_id, associado_id, quantidade) values (:kbz, :krf, 1);
+\set ON_ERROR_STOP on
+\echo '--- admin insere, altera opcional/grupo e apaga uma linha de teste; operador e consulta não alteram nem apagam (0 linhas)'
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+insert into item_associado (produto_id, associado_id, quantidade) values (:kbz, :krf, 1);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000b1',false) \gset
+with x as (update item_associado set opcional = true where produto_id = :kbz returning 1) select 'operador alterou ' || count(*) || ' linhas' from x;
+with x as (delete from item_associado where produto_id = :kbz returning 1) select 'operador apagou ' || count(*) || ' linhas' from x;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000d1',false) \gset
+with x as (update item_associado set grupo = 'X' where produto_id = :kbz returning 1) select 'consulta alterou ' || count(*) || ' linhas' from x;
+with x as (delete from item_associado where produto_id = :kbz returning 1) select 'consulta apagou ' || count(*) || ' linhas' from x;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000000a',false) \gset
+update item_associado set opcional = true, grupo = 'Teste' where produto_id = :kbz and associado_id = :krf;
+select 'admin alterou ok: ' || exists (select 1 from item_associado where produto_id = :kbz and associado_id = :krf and opcional and grupo = 'Teste');
+delete from item_associado where produto_id = :kbz and associado_id = :krf;
+select 'admin apagou ok: ' || not exists (select 1 from item_associado where produto_id = :kbz);
+
+\echo '--- saída com os periféricos em linhas próprias (módulo + chicote + antenas) baixa cada saldo'
+insert into cliente (nome) values ('Cliente Kit');
+insert into unidade_cliente (cliente_id, nome) select id, 'Unidade Kit' from cliente where nome = 'Cliente Kit';
+select (select id from unidade_cliente where nome='Unidade Kit') as uk, (select id from produto where nome='Módulo FMC 650') as km,
+       (select id from produto where nome='Chicote FMC650') as kc, (select id from produto where nome='Antena GPS') as kg,
+       (select id from produto where nome='Antena GSM Femea') as kf \gset
+create temp table antes_kit as
+  select produto_id, coalesce(sum(quantidade), 0) q from saldo
+   where local_id = :n23 and reservado_unidade_id is null and condicao = 'novo' and produto_id in (:km, :kc, :kg, :kf) group by 1;
+select registrar_movimentacao(jsonb_build_object('tipo','AJUSTE','local_id',:n23,'observacao','carga kits','itens',jsonb_build_array(
+  jsonb_build_object('produto_id',:km,'quantidade',5), jsonb_build_object('produto_id',:kc,'quantidade',5),
+  jsonb_build_object('produto_id',:kg,'quantidade',5), jsonb_build_object('produto_id',:kf,'quantidade',5)))) is not null;
+select registrar_movimentacao(jsonb_build_object('tipo','SAIDA_CLIENTE','local_id',:n23,'unidade_id',:uk,'modo_envio','correios','finalidade','mobilizacao','itens',jsonb_build_array(
+  jsonb_build_object('produto_id',:km,'quantidade',2), jsonb_build_object('produto_id',:kc,'quantidade',2),
+  jsonb_build_object('produto_id',:kg,'quantidade',2), jsonb_build_object('produto_id',:kf,'quantidade',2)))) is not null;
+select 'saída com kit ok: ' || bool_and(coalesce(d.q,0) - coalesce(a.q,0) = 3)
+  from (select unnest(array[:km, :kc, :kg, :kf]) pid) p
+  left join antes_kit a on a.produto_id = p.pid
+  left join (select produto_id, sum(quantidade) q from saldo where local_id = :n23 and reservado_unidade_id is null and condicao = 'novo'
+              group by 1) d on d.produto_id = p.pid;

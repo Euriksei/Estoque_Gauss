@@ -230,10 +230,10 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 - [x] Cadastros: admin edita clientes e unidades (renomear, mover unidade de cliente, excluir só sem histórico; com histórico, desativa), rodado no Supabase — 2026-11-25
 - [x] Cadastros: lista de clientes com busca, recolhida e alinhada — 2026-11-25
 - [x] Testes do banco (01_cenarios.sql) atualizados para as regras atuais, com casos novos — 2026-11-25
+- [x] Testes do banco: kits (conteúdo, quem edita, saída com periféricos) — 2026-11-25
 
 ### A fazer
 
-- [ ] Testes do banco: casos para kits (item_associado com opcional e grupo)
 - [ ] Banco: barrar cliente/unidade inativos nas funções (hoje só as telas escondem)
 - [ ] Testar logado: Com kit, troca de chips entre equipamentos, registrar transferência, devolução e admin criando solicitação (nada disso foi testado no navegador)
 - [ ] (Depois) Revisar nomes e agrupamento dos clientes importados do GaussFleet
