@@ -33,7 +33,10 @@ export default function Login() {
     const sb = supabaseBrowser();
     if (modo === "cadastro") {
       const { error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome } } });
-      setMsg(error ? error.message : "Cadastro feito. Um administrador precisa liberar o seu acesso.");
+      setMsg(!error ? "Cadastro feito. Um administrador precisa liberar o seu acesso."
+        : error.status === 429 || /rate limit/i.test(error.message) ? "O sistema atingiu o limite de e-mails por hora. Tente de novo mais tarde ou peça ao administrador para criar seu acesso."
+        : /already registered/i.test(error.message) ? "Este e-mail já tem cadastro. Use Entrar ou Esqueci a senha."
+        : "Não foi possível criar a conta: " + error.message);
     } else if (modo === "esqueci") {
       const { error } = await sb.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/confirm?next=/redefinir-senha`,
@@ -46,7 +49,10 @@ export default function Login() {
       );
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password: senha });
-      if (error) setMsg("E-mail ou senha incorretos.");
+      if (error) setMsg(
+        error.code === "email_not_confirmed" || /email not confirmed/i.test(error.message) ? "Seu e-mail ainda não foi confirmado. Confira a caixa de entrada e o spam, ou peça ao administrador para liberar."
+        : error.status === 429 ? "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo."
+        : "E-mail ou senha incorretos.");
       else {
         router.push("/");
         router.refresh();
