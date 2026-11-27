@@ -875,16 +875,16 @@ select 'kit MDVR 5404 sem chicote ok: ' || ((select string_agg(assoc || case whe
                               = 'Antena GPS,Antena GSM Macho,Antena Wifi(opc)');
 select 'kit DashCAM ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='DashCAM') = 'Chicote DashCAM');
 select 'kit ECO 5 só chicote ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='Módulo ECO 5') = 'Chicote ECO 5');
-select 'câmeras ok: ' || ((select count(*) from v_kit where prod in ('Camera contexto DVR','Camera Fadiga DVR','Camera frontal (Adas) DVR') and assoc='Extensão cameras') = 3
-                       and (select count(*) from v_kit where prod in ('Camera Contexto DashCAM','Camera Fadiga DashCAM','Camera frontal (Adas) DashCAM') and assoc='Extensão cameras DashCAM') = 3
+select 'câmeras ok: ' || ((select count(*) from v_kit where prod in ('Camera contexto DVR','Camera Fadiga DVR','Camera frontal (Adas) DVR') and assoc='Extensão cameras MDVR') = 3
+                       and (select count(*) from v_kit where prod in ('Camera Contexto DashCAM','Camera Fadiga DashCAM') and assoc='Extensão cameras DashCAM') = 2
                        and (select string_agg(assoc, ',') from v_kit where prod='Camera IP') = 'Cabo rede');
-select 'tablets ok: ' || ((select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser') and grupo is null
-                            and assoc in ('Suporte Tablet','Carregador DC/DC 12V Tablet Roboflex')) = 4
+select 'tablets ok: ' || ((select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser') and grupo='Suporte'
+                            and assoc in ('Suporte Tablet','Suporte Tablet Ventosa')) = 4
                        and (select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser') and grupo='Case'
                             and assoc in ('Case Tablet 4 pinos','Case Tablet 10 pinos','Case Tablet Tipo C')) = 6
                        and (select count(*) from v_kit where prod in ('Tablet Samsung','Tablet Multilaser')) = 10);
-select 'plug segue a case ok: ' || ((select string_agg(assoc, ',') from v_kit where prod='Case Tablet 4 pinos') = 'Plug Carregador Tablet 4 pinos'
-                                 and (select string_agg(assoc, ',') from v_kit where prod='Case Tablet 10 pinos') = 'Plug Carregador Tablet 10 pinos'
+select 'plug e carregador seguem a case ok: ' || ((select string_agg(assoc, ',' order by assoc) from v_kit where prod='Case Tablet 4 pinos') = 'Carregador Tablet 4 Vias,Plug Carregador Tablet 4 pinos'
+                                 and (select string_agg(assoc, ',' order by assoc) from v_kit where prod='Case Tablet 10 pinos') = 'Carregador Tablet 10 Vias (Roboflex),Plug Carregador Tablet 10 pinos'
                                  and not exists (select 1 from v_kit where prod='Case Tablet Tipo C'));
 select (select id from produto where nome='Buzzer') as kbz, (select id from produto where nome='Relé Finder') as krf \gset
 

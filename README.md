@@ -110,7 +110,7 @@ Você precisa de Node.js 18 ou mais novo, Git e um projeto no [Supabase](https:/
 
 ### 1. Banco de dados
 
-No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens. **Se o seu banco já existe**, rode em vez disso os arquivos de atualização que ainda não rodou, **nesta ordem**: `supabase/atualizar_solicitacao_producao.sql`, `supabase/atualizar_chips.sql`, `supabase/atualizar_regras_solicitacao.sql`, `supabase/atualizar_catalogo.sql`, `supabase/atualizar_permissoes_funcoes.sql`, `supabase/atualizar_regras_dedicado_datas.sql`, `supabase/atualizar_fluxo_pedidos.sql`, `supabase/atualizar_ver_como.sql` , `supabase/atualizar_finalidade.sql` , `supabase/atualizar_envio_tecnico.sql` , `supabase/atualizar_2026_11_25.sql` , `supabase/atualizar_kits.sql` , `supabase/atualizar_itens_admin.sql` e `supabase/atualizar_clientes_admin.sql` (cada um uma vez, sempre nesta ordem; quem cria o banco do zero com o `banco_completo.sql` atual não precisa deles).
+No Supabase, abra o **SQL Editor**, copie **todo o conteúdo** do arquivo `supabase/banco_completo.sql` (não o nome do arquivo) e rode uma vez. Ele cria tabelas, segurança, funções e o catálogo inicial de itens. **Se o seu banco já existe**, rode em vez disso os arquivos de atualização que ainda não rodou, **nesta ordem**: `supabase/atualizar_solicitacao_producao.sql`, `supabase/atualizar_chips.sql`, `supabase/atualizar_regras_solicitacao.sql`, `supabase/atualizar_catalogo.sql`, `supabase/atualizar_permissoes_funcoes.sql`, `supabase/atualizar_regras_dedicado_datas.sql`, `supabase/atualizar_fluxo_pedidos.sql`, `supabase/atualizar_ver_como.sql` , `supabase/atualizar_finalidade.sql` , `supabase/atualizar_envio_tecnico.sql` , `supabase/atualizar_2026_11_25.sql` , `supabase/atualizar_kits.sql` , `supabase/atualizar_itens_admin.sql` , `supabase/atualizar_clientes_admin.sql` e `supabase/atualizar_planilha_oficial.sql` (cada um uma vez, sempre nesta ordem; quem cria o banco do zero com o `banco_completo.sql` atual não precisa deles).
 
 Quem já tinha rodado as migrações antigas **não deve rodar este arquivo de novo**: o banco dele já está completo. Mudanças futuras virão como arquivos novos de atualização.
 
@@ -231,6 +231,8 @@ Atualizado a cada sessão de trabalho. Marque `[x]` quando concluir e anote a da
 - [x] Cadastros: lista de clientes com busca, recolhida e alinhada — 2026-11-25
 - [x] Testes do banco (01_cenarios.sql) atualizados para as regras atuais, com casos novos — 2026-11-25
 - [x] Testes do banco: kits (conteúdo, quem edita, saída com periféricos) — 2026-11-25
+- [x] Catálogo e saldo livre de Nova Lima iguais à planilha oficial (Controle_Mensal_Equipamentos_Estoque), por AJUSTE "Inventário oficial", rodado no Supabase — 2026-11-27
+- [x] Kit de tablet: escolhe suporte (Tablet ou Ventosa) e case; case 4 pinos leva plug 4 + carregador 4 vias, case 10 pinos leva plug 10 + carregador 10 vias, Tipo C não leva nada — 2026-11-27
 
 ### A fazer
 

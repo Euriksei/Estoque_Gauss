@@ -17,7 +17,6 @@ Camera Fadiga DashCAM,Câmeras,"",Intelbrás,30,0
 Camera IP,Câmeras,"",Intelbrás,30,0
 Camera contexto DVR,Câmeras,"",Intelbrás,30,0
 Camera frontal (Adas) DVR,Câmeras,"",Intelbrás,30,0
-Camera frontal (Adas) DashCAM,Câmeras,"",Intelbrás,30,0
 DashCAM,MDVR e monitores,"",Intelbrás,30,0
 MDVR 3404,MDVR e monitores,"",Intelbrás,30,0
 MDVR 5404,MDVR e monitores,"",Intelbrás,30,0
@@ -31,11 +30,11 @@ Chicote Pro4,"Cabos, chicotes e conexões","",Securitek,30,0
 Chicote Pro5,"Cabos, chicotes e conexões","",Securitek,30,0
 Chicote SUNTECH Plug Play,"Cabos, chicotes e conexões","",Suntech,15,0
 Chicote Trace5,"Cabos, chicotes e conexões","",Securitek,30,0
-Extensão cameras,"Cabos, chicotes e conexões","",Intelbrás,30,0
+Extensão cameras MDVR,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Extensão cameras DashCAM,"Cabos, chicotes e conexões","",Intelbrás,30,0
 Switch cabo rede Intelbras,"Cabos, chicotes e conexões","",Intelbrás,30,0
-Carregador DC/DC 12V Tablet Roboflex,Tablets e acessórios,"",Roboflex,20,30
-Suporte Ventosa,Tablets e acessórios,"",Roboflex,20,20
+Carregador Tablet 10 Vias (Roboflex),Tablets e acessórios,"",Roboflex,20,30
+Suporte Tablet Ventosa,Tablets e acessórios,"",Roboflex,20,20
 Tablet Multilaser,Tablets e acessórios,"",Roboflex,20,0
 Tablet Samsung,Tablets e acessórios,"",Roboflex,20,20
 Cartão RFID 125,RFID e identificação,"",Mercado Livre,5,200
@@ -43,8 +42,6 @@ Cartão RFID 125,RFID e identificação,"",Mercado Livre,5,200
 Leitor RFID 125,RFID e identificação,"",SGBras,15,0
 "Leitor RFID 13,56",RFID e identificação,"",SGBras,15,0
 "Leitor RFID 13,56 / 125",RFID e identificação,"",SGBras,15,500
-Baterias Plug&Play M11,Alimentação e conversores,"",M11N Baterias,15,5
-Carregador Plug Play,Alimentação e conversores,"",M11N Baterias,15,5
 Conversor locomotiva 1 Amper,Alimentação e conversores,"",Anderson Conversores,10,0
 Conversor locomotiva 15 Amper,Alimentação e conversores,"",MCE Técnica,15,0
 Conversor locomotiva 3 Amper,Alimentação e conversores,"",Anderson Conversores,10,20
@@ -67,7 +64,7 @@ Cartão Memória 256GB,Armazenamento de dados,"",Intelbrás,30,0
 Cartão Memória 256GB MICRO SD,Armazenamento de dados,"",Intelbrás,30,0
 KIT CTA Comboio,Controle de abastecimento e comboio,"",CTA,30,0
 KIT CTA Posto fixo,Controle de abastecimento e comboio,"",CTA,30,0
-Galielo Rotograma falado,Navegação e orientação veicular,"",SGBras,15,20
+Galileo Rotograma falado,Navegação e orientação veicular,"",SGBras,15,20
 Smartlink Carretinha,Integração veicular,"",PrimeField,30,0
 Chicote ECO 5,"Cabos, chicotes e conexões","","",,0
 Chicote ECO-LIGHT +S,"Cabos, chicotes e conexões","","",,0
@@ -84,3 +81,4 @@ Case Tablet Tipo C,Tablets e acessórios,"","",,0
 Suporte Tablet,Tablets e acessórios,"","",,0
 Plug Carregador Tablet 4 pinos,Tablets e acessórios,"","",,0
 Plug Carregador Tablet 10 pinos,Tablets e acessórios,"","",,0
+Carregador Tablet 4 Vias,Tablets e acessórios,"","",,0
